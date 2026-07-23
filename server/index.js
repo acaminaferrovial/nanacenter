@@ -28,6 +28,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/registros', requireAuth, registrosRoutes);
 app.use('/api/upload', requireAuth, uploadRoutes);
+app.use('/mcp/:token', requireMcpAuth, mcpRoutes);
 app.use('/mcp', requireMcpAuth, mcpRoutes);
 
 app.use((err, req, res, next) => {
