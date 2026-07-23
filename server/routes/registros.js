@@ -1,22 +1,10 @@
 import { Router } from 'express';
 import Registro from '../models/Registro.js';
 import User from '../models/User.js';
+import { parseFecha } from '../utils/fecha.js';
+import { calcularGestacion } from '../utils/gestacion.js';
 
 const router = Router();
-
-function parseFecha(fechaStr) {
-  if (!fechaStr) return null;
-  const fecha = new Date(`${fechaStr}T00:00:00.000Z`);
-  if (Number.isNaN(fecha.getTime())) return null;
-  return fecha;
-}
-
-function calcularGestacion(fechaUltimaRegla, fecha) {
-  if (!fechaUltimaRegla) return {};
-  const dias = Math.floor((fecha - new Date(fechaUltimaRegla)) / 86400000) + 1;
-  if (dias < 1) return {};
-  return { diaGestacion: dias, semanaEmbarazo: Math.floor((dias - 1) / 7) + 1 };
-}
 
 router.get('/', async (req, res) => {
   const registros = await Registro.find({ usuarioId: req.userId }).sort({ fecha: 1 });

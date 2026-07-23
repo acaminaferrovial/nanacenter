@@ -4,9 +4,11 @@ import cors from 'cors';
 import { connectDB } from './db.js';
 import { seedUser } from './scripts/seedUser.js';
 import { requireAuth } from './middleware/auth.js';
+import { requireMcpAuth } from './middleware/mcpAuth.js';
 import authRoutes from './routes/auth.js';
 import registrosRoutes from './routes/registros.js';
 import uploadRoutes from './routes/upload.js';
+import mcpRoutes from './routes/mcp.js';
 
 if (!process.env.MONGODB_URI && !process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'gestabien-dev-secret-change-me';
@@ -26,6 +28,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/registros', requireAuth, registrosRoutes);
 app.use('/api/upload', requireAuth, uploadRoutes);
+app.use('/mcp', requireMcpAuth, mcpRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
