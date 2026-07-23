@@ -3,6 +3,7 @@ import Registro from '../models/Registro.js';
 import User from '../models/User.js';
 import { parseFecha, fechaKey } from '../utils/fecha.js';
 import { calcularGestacion } from '../utils/gestacion.js';
+import { SINTOMA_TIPOS } from '../utils/sintomas.js';
 
 async function getUsuario() {
   return User.findOne();
@@ -244,7 +245,7 @@ export function registerTools(server) {
       description: 'Añade un síntoma nuevo a la lista de síntomas de un día, sin borrar los que ya hubiera.',
       inputSchema: {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
-        tipo: z.string().describe('Nombre del síntoma, p.ej. "náuseas", "dolor de cabeza"'),
+        tipo: z.enum(SINTOMA_TIPOS).describe('Tipo de síntoma. Debe ser exactamente uno de los valores de la lista, para que coincida con los que ya usa la app.'),
         momento: z.enum(['mañana', 'tarde', 'noche']).optional(),
         intensidad: z.number().min(1).max(10).optional(),
         duracion: z.string().optional(),
