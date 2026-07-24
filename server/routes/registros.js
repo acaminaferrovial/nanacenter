@@ -3,67 +3,83 @@ import Registro from '../models/Registro.js';
 import User from '../models/User.js';
 import { parseFecha } from '../utils/fecha.js';
 import { calcularGestacion } from '../utils/gestacion.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
-router.get('/', async (req, res) => {
-  const registros = await Registro.find({ usuarioId: req.userId }).sort({ fecha: 1 });
-  res.json(registros);
-});
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const registros = await Registro.find({ usuarioId: req.userId }).sort({ fecha: 1 });
+    res.json(registros);
+  })
+);
 
-router.get('/semana/:n', async (req, res) => {
-  const semana = Number(req.params.n);
-  const registros = await Registro.find({ usuarioId: req.userId, semanaEmbarazo: semana }).sort({ fecha: 1 });
-  res.json(registros);
-});
+router.get(
+  '/semana/:n',
+  asyncHandler(async (req, res) => {
+    const semana = Number(req.params.n);
+    const registros = await Registro.find({ usuarioId: req.userId, semanaEmbarazo: semana }).sort({ fecha: 1 });
+    res.json(registros);
+  })
+);
 
-router.get('/:fecha', async (req, res) => {
-  const fecha = parseFecha(req.params.fecha);
-  if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+router.get(
+  '/:fecha',
+  asyncHandler(async (req, res) => {
+    const fecha = parseFecha(req.params.fecha);
+    if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
 
-  const registro = await Registro.findOne({ usuarioId: req.userId, fecha });
-  if (!registro) return res.status(404).json({ error: 'No hay registro para esa fecha' });
-  res.json(registro);
-});
+    const registro = await Registro.findOne({ usuarioId: req.userId, fecha });
+    if (!registro) return res.status(404).json({ error: 'No hay registro para esa fecha' });
+    res.json(registro);
+  })
+);
 
-router.post('/', async (req, res) => {
-  const { fecha: fechaStr, ...datos } = req.body;
-  const fecha = parseFecha(fechaStr);
-  if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+router.post(
+  '/',
+  asyncHandler(async (req, res) => {
+    const { fecha: fechaStr, ...datos } = req.body;
+    const fecha = parseFecha(fechaStr);
+    if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
 
-  delete datos.usuarioId;
-  delete datos._id;
+    delete datos.usuarioId;
+    delete datos._id;
 
-  const usuario = await User.findById(req.userId);
-  const gestacion = calcularGestacion(usuario?.fechaUltimaRegla, fecha);
+    const usuario = await User.findById(req.userId);
+    const gestacion = calcularGestacion(usuario?.fechaUltimaRegla, fecha);
 
-  const registro = await Registro.findOneAndUpdate(
-    { usuarioId: req.userId, fecha },
-    { $set: { ...datos, ...gestacion, usuarioId: req.userId, fecha } },
-    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
-  );
-  res.status(201).json(registro);
-});
+    const registro = await Registro.findOneAndUpdate(
+      { usuarioId: req.userId, fecha },
+      { $set: { ...datos, ...gestacion, usuarioId: req.userId, fecha } },
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+    res.status(201).json(registro);
+  })
+);
 
-router.patch('/:fecha', async (req, res) => {
-  const fecha = parseFecha(req.params.fecha);
-  if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+router.patch(
+  '/:fecha',
+  asyncHandler(async (req, res) => {
+    const fecha = parseFecha(req.params.fecha);
+    if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
 
-  const datos = { ...req.body };
-  delete datos.usuarioId;
-  delete datos._id;
-  delete datos.fecha;
+    const datos = { ...req.body };
+    delete datos.usuarioId;
+    delete datos._id;
+    delete datos.fecha;
 
-  const usuario = await User.findById(req.userId);
-  const gestacion = calcularGestacion(usuario?.fechaUltimaRegla, fecha);
+    const usuario = await User.findById(req.userId);
+    const gestacion = calcularGestacion(usuario?.fechaUltimaRegla, fecha);
 
-  const registro = await Registro.findOneAndUpdate(
-    { usuarioId: req.userId, fecha },
-    { $set: { ...datos, ...gestacion } },
-    { new: true, runValidators: true }
-  );
-  if (!registro) return res.status(404).json({ error: 'No hay registro para esa fecha' });
-  res.json(registro);
-});
+    const registro = await Registro.findOneAndUpdate(
+      { usuarioId: req.userId, fecha },
+      { $set: { ...datos, ...gestacion } },
+      { new: true, runValidators: true }
+    );
+    if (!registro) return res.status(404).json({ error: 'No hay registro para esa fecha' });
+    res.json(registro);
+  })
+);
 
 export default router;

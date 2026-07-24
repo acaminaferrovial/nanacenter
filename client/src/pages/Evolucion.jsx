@@ -13,6 +13,9 @@ import {
 } from 'recharts';
 import { api } from '../api/client.js';
 import { addDays, fechaKey, formatFechaCorta, todayStr } from '../utils/date.js';
+import { SINTOMA_TIPOS } from './RegistroDia.jsx';
+
+const DIAS_SEMANA = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 const RANGOS = [
   { id: '7', label: '7 días' },
@@ -31,6 +34,141 @@ function Card({ title, children }) {
 
 function SinDatos() {
   return <p className="text-sm text-gray-400 py-8 text-center">Todavía no hay datos suficientes.</p>;
+}
+
+function StatTile({ label, value }) {
+  return (
+    <div className="bg-rose-50 rounded-xl px-3 py-2">
+      <p className="text-[11px] text-gray-500">{label}</p>
+      <p className="text-lg font-semibold text-rose-600">{value}</p>
+    </div>
+  );
+}
+
+function PesoTooltip({ active, payload }) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-white border border-rose-100 rounded-lg px-2 py-1 text-xs shadow">
+      <p className="font-medium">{d.fecha}</p>
+      <p>Peso: {d.peso} kg</p>
+      {d.semana != null && <p>Semana {d.semana} de gestación</p>}
+    </div>
+  );
+}
+
+function colorIntensidad(intensidad) {
+  const clamped = Math.max(0, Math.min(10, intensidad));
+  const hue = 120 - (clamped / 10) * 120; // 0 = verde, 10 = rojo
+  return `hsl(${hue}, 70%, 45%)`;
+}
+
+function CalendarioSintomas({ registros }) {
+  const [mes, setMes] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [sintoma, setSintoma] = useState(SINTOMA_TIPOS[0]);
+
+  const intensidadPorFecha = useMemo(() => {
+    const map = {};
+    registros.forEach((r) => {
+      (r.sintomas || [])
+        .filter((s) => s.tipo === sintoma)
+        .forEach((s) => {
+          const key = fechaKey(r.fecha);
+          const intensidad = s.intensidad ?? 0;
+          if (map[key] === undefined || intensidad > map[key]) map[key] = intensidad;
+        });
+    });
+    return map;
+  }, [registros, sintoma]);
+
+  const celdas = useMemo(() => {
+    const year = mes.getFullYear();
+    const month = mes.getMonth();
+    const primerDia = new Date(year, month, 1);
+    const diasEnMes = new Date(year, month + 1, 0).getDate();
+    const offset = (primerDia.getDay() + 6) % 7;
+
+    const dias = [];
+    for (let i = 0; i < offset; i++) dias.push(null);
+    for (let d = 1; d <= diasEnMes; d++) {
+      dias.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+    return dias;
+  }, [mes]);
+
+  function cambiarMes(delta) {
+    setMes((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  }
+
+  const hoy = todayStr();
+  const tituloMes = mes.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+  return (
+    <Card title="Calendario por síntoma">
+      <select
+        value={sintoma}
+        onChange={(e) => setSintoma(e.target.value)}
+        className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+      >
+        {SINTOMA_TIPOS.map((tipo) => (
+          <option key={tipo} value={tipo}>
+            {tipo}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={() => cambiarMes(-1)} className="text-rose-500 px-2 text-lg">
+          ‹
+        </button>
+        <span className="font-semibold capitalize text-sm">{tituloMes}</span>
+        <button type="button" onClick={() => cambiarMes(1)} className="text-rose-500 px-2 text-lg">
+          ›
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 text-center text-xs text-gray-400 mb-1">
+        {DIAS_SEMANA.map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {celdas.map((fecha, i) => {
+          if (!fecha) return <div key={`blank-${i}`} />;
+          const intensidad = intensidadPorFecha[fecha];
+          const esHoy = fecha === hoy;
+          const dia = Number(fecha.slice(-2));
+          const tieneIntensidad = intensidad !== undefined;
+          return (
+            <div
+              key={fecha}
+              style={tieneIntensidad ? { backgroundColor: colorIntensidad(intensidad) } : undefined}
+              className={`aspect-square rounded-lg flex items-center justify-center text-sm ${
+                esHoy ? 'ring-2 ring-rose-500' : ''
+              } ${tieneIntensidad ? 'text-white font-medium' : 'text-gray-400'}`}
+            >
+              {dia}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-gray-500 px-1">
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colorIntensidad(0) }} /> Leve
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colorIntensidad(5) }} /> Media
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colorIntensidad(10) }} /> Fuerte
+        </span>
+      </div>
+    </Card>
+  );
 }
 
 export default function Evolucion() {
@@ -61,9 +199,37 @@ export default function Evolucion() {
     () =>
       registrosFiltrados
         .filter((r) => r.peso != null && r.peso !== '')
-        .map((r) => ({ fecha: formatFechaCorta(fechaKey(r.fecha)), peso: r.peso })),
+        .map((r) => ({ fecha: formatFechaCorta(fechaKey(r.fecha)), peso: r.peso, semana: r.semanaEmbarazo ?? null })),
     [registrosFiltrados]
   );
+
+  const registrosConPeso = useMemo(
+    () =>
+      registros
+        .filter((r) => r.peso != null && r.peso !== '')
+        .slice()
+        .sort((a, b) => fechaKey(a.fecha).localeCompare(fechaKey(b.fecha))),
+    [registros]
+  );
+
+  const pesoInicial = registrosConPeso[0]?.peso ?? null;
+  const pesoActual = registrosConPeso[registrosConPeso.length - 1]?.peso ?? null;
+  const variacionTotal = pesoInicial != null && pesoActual != null ? +(pesoActual - pesoInicial).toFixed(1) : null;
+
+  const variacionSemanal = useMemo(() => {
+    if (registrosConPeso.length === 0) return null;
+    const ultimo = registrosConPeso[registrosConPeso.length - 1];
+    const fechaLimite = addDays(fechaKey(ultimo.fecha), -7);
+    const candidatos = registrosConPeso.filter((r) => fechaKey(r.fecha) <= fechaLimite);
+    if (candidatos.length === 0) return null;
+    const referencia = candidatos[candidatos.length - 1];
+    return +(ultimo.peso - referencia.peso).toFixed(1);
+  }, [registrosConPeso]);
+
+  function formatoVariacion(v) {
+    if (v == null) return '—';
+    return `${v > 0 ? '+' : ''}${v} kg`;
+  }
 
   const datosSueno = useMemo(
     () =>
@@ -105,6 +271,18 @@ export default function Evolucion() {
       .slice(0, 8);
   }, [registrosFiltrados]);
 
+  const datosNauseasVomitos = useMemo(
+    () =>
+      registrosFiltrados
+        .map((r) => {
+          const nauseas = (r.sintomas || []).filter((s) => s.tipo === 'Náuseas').length;
+          const vomitos = (r.sintomas || []).filter((s) => s.tipo === 'Vómitos').length;
+          return { fecha: formatFechaCorta(fechaKey(r.fecha)), Náuseas: nauseas, Vómitos: vomitos, total: nauseas + vomitos };
+        })
+        .filter((d) => d.total > 0),
+    [registrosFiltrados]
+  );
+
   const datosTransito = useMemo(
     () =>
       registrosFiltrados
@@ -139,14 +317,22 @@ export default function Evolucion() {
 
       {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
 
+      <CalendarioSintomas registros={registros} />
+
       <Card title="Peso">
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile label="Peso inicial" value={pesoInicial != null ? `${pesoInicial} kg` : '—'} />
+          <StatTile label="Peso actual" value={pesoActual != null ? `${pesoActual} kg` : '—'} />
+          <StatTile label="Variación semanal" value={formatoVariacion(variacionSemanal)} />
+          <StatTile label="Variación total" value={formatoVariacion(variacionTotal)} />
+        </div>
         {datosPeso.length > 0 ? (
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={datosPeso}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
               <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-              <Tooltip />
+              <Tooltip content={<PesoTooltip />} />
               <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#e11d48" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -165,7 +351,7 @@ export default function Evolucion() {
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line type="monotone" dataKey="horas" name="Horas" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="calidad" name="Calidad (1-5)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="calidad" name="Calidad (0-10)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -179,7 +365,7 @@ export default function Evolucion() {
             <LineChart data={datosEmocional}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
               <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} domain={[1, 5]} allowDecimals={false} />
+              <YAxis tick={{ fontSize: 11 }} domain={[0, 10]} allowDecimals={false} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line type="monotone" dataKey="Ánimo" stroke="#e11d48" strokeWidth={2} dot={false} connectNulls />
@@ -203,6 +389,24 @@ export default function Evolucion() {
               <YAxis type="category" dataKey="tipo" tick={{ fontSize: 11 }} width={90} />
               <Tooltip />
               <Bar dataKey="veces" fill="#fb7185" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <SinDatos />
+        )}
+      </Card>
+
+      <Card title="Náuseas y vómitos">
+        {datosNauseasVomitos.length > 0 ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={datosNauseasVomitos}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
+              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="Náuseas" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Vómitos" fill="#e11d48" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

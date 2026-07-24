@@ -29,15 +29,15 @@ function fail(mensaje) {
   return { content: [{ type: 'text', text: mensaje }], isError: true };
 }
 
-const escalaEmocional = z.number().min(1).max(5);
+const escala010 = z.number().min(0).max(10);
 
 const emocionalSchema = z
   .object({
-    animo: escalaEmocional.optional(),
-    ansiedad: escalaEmocional.optional(),
-    estres: escalaEmocional.optional(),
-    irritabilidad: escalaEmocional.optional(),
-    energia: escalaEmocional.optional(),
+    animo: escala010.optional(),
+    ansiedad: escala010.optional(),
+    estres: escala010.optional(),
+    irritabilidad: escala010.optional(),
+    energia: escala010.optional(),
     nota: z.string().optional()
   })
   .optional()
@@ -46,7 +46,7 @@ const emocionalSchema = z
 const suenoSchema = z
   .object({
     horas: z.number().optional(),
-    calidad: escalaEmocional.optional(),
+    calidad: escala010.optional(),
     despertares: z.number().optional(),
     dificultadConciliar: z.boolean().optional(),
     sensacionAlDespertar: z.string().optional(),
@@ -57,11 +57,8 @@ const suenoSchema = z
 
 const nutricionSchema = z
   .object({
-    comidas: z.number().optional(),
-    agua: z.number().optional(),
-    hambre: escalaEmocional.optional(),
-    vomitos: z.boolean().optional(),
-    nota: z.string().optional()
+    comidas: z.number().optional().describe('Número de comidas'),
+    hambre: escala010.optional().describe('Grado de apetito, de 0 a 10')
   })
   .optional()
   .describe('Nutrición del día. Solo se actualizan los campos que se envíen, el resto se conserva.');
@@ -78,9 +75,17 @@ const transitoSchema = z
 const momentoDiaSchema = z
   .object({
     nota: z.string().optional(),
-    energia: z.number().min(1).max(5).optional()
+    energia: escala010.optional()
   })
   .optional();
+
+const miccionSchema = z
+  .object({
+    frecuencia: z.number().optional().describe('Veces al día (opcional)'),
+    nota: z.string().optional().describe('Otros cambios notados al orinar (opcional)')
+  })
+  .optional()
+  .describe('Datos de micción, opcionales.');
 
 export function registerTools(server) {
   server.registerTool(
@@ -199,12 +204,13 @@ export function registerTools(server) {
         sueno: suenoSchema,
         nutricion: nutricionSchema,
         transito: transitoSchema,
+        miccion: miccionSchema,
         momentoManana: momentoDiaSchema,
         momentoTarde: momentoDiaSchema,
         momentoNoche: momentoDiaSchema
       }
     },
-    async ({ fecha, peso, diario, resumenDia, emocional, sueno, nutricion, transito, momentoManana, momentoTarde, momentoNoche }) => {
+    async ({ fecha, peso, diario, resumenDia, emocional, sueno, nutricion, transito, miccion, momentoManana, momentoTarde, momentoNoche }) => {
       const f = parseFecha(fecha);
       if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
 
@@ -219,6 +225,7 @@ export function registerTools(server) {
       if (sueno) set.sueno = { ...objSubdoc(existente?.sueno), ...sueno };
       if (nutricion) set.nutricion = { ...objSubdoc(existente?.nutricion), ...nutricion };
       if (transito) set.transito = { ...objSubdoc(existente?.transito), ...transito };
+      if (miccion) set.miccion = { ...objSubdoc(existente?.miccion), ...miccion };
       if (momentoManana || momentoTarde || momentoNoche) {
         const momentosExistentes = objSubdoc(existente?.momentos);
         set.momentos = {
@@ -246,8 +253,8 @@ export function registerTools(server) {
       inputSchema: {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         tipo: z.enum(SINTOMA_TIPOS).describe('Tipo de síntoma. Debe ser exactamente uno de los valores de la lista, para que coincida con los que ya usa la app.'),
-        momento: z.enum(['mañana', 'tarde', 'noche']).optional(),
-        intensidad: z.number().min(1).max(10).optional(),
+        momento: z.array(z.enum(['mañana', 'tarde', 'noche'])).optional().describe('Uno o varios momentos del día en los que ocurrió'),
+        intensidad: escala010.optional(),
         duracion: z.string().optional(),
         nota: z.string().optional()
       }
@@ -279,11 +286,14 @@ export function registerTools(server) {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         hora: z.string().optional().describe('Hora aproximada, p.ej. "09:30"'),
         tipoBristol: z.number().min(1).max(7).describe('Tipo según la escala de Bristol, del 1 (muy duro) al 7 (líquido)'),
+        cantidad: z.enum(['poca', 'normal', 'abundante']).optional(),
+        color: z.enum(['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado']).optional(),
+        evacuacionCompleta: z.boolean().optional().describe('true si la evacuación fue completa, false si fue incompleta'),
         dolor: z.boolean().optional(),
         nota: z.string().optional()
       }
     },
-    async ({ fecha, hora, tipoBristol, dolor, nota }) => {
+    async ({ fecha, hora, tipoBristol, cantidad, color, evacuacionCompleta, dolor, nota }) => {
       const f = parseFecha(fecha);
       if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
 
@@ -292,7 +302,39 @@ export function registerTools(server) {
       const registro = await Registro.findOneAndUpdate(
         { usuarioId: usuario._id, fecha: f },
         {
-          $push: { 'transito.deposiciones': { hora, tipoBristol, dolor, nota } },
+          $push: { 'transito.deposiciones': { hora, tipoBristol, cantidad, color, evacuacionCompleta, dolor, nota } },
+          $set: { ...gestacion, usuarioId: usuario._id, fecha: f }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+      );
+      return ok(limpiar(registro));
+    }
+  );
+
+  server.registerTool(
+    'anadir_infusion',
+    {
+      title: 'Añadir una infusión',
+      description: 'Registra una toma de infusión del día (se pueden mezclar varias a la vez), con hora y efecto notado.',
+      inputSchema: {
+        fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
+        tipos: z
+          .array(z.enum(['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien']))
+          .describe('Una o varias infusiones tomadas juntas'),
+        hora: z.string().optional().describe('Hora aproximada, p.ej. "21:00"'),
+        efecto: z.string().optional().describe('Efecto notado, p.ej. "me hizo descansar", "me sentí bien"')
+      }
+    },
+    async ({ fecha, tipos, hora, efecto }) => {
+      const f = parseFecha(fecha);
+      if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
+
+      const usuario = await getUsuario();
+      const gestacion = calcularGestacion(usuario.fechaUltimaRegla, f);
+      const registro = await Registro.findOneAndUpdate(
+        { usuarioId: usuario._id, fecha: f },
+        {
+          $push: { infusiones: { tipos, hora, efecto } },
           $set: { ...gestacion, usuarioId: usuario._id, fecha: f }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }

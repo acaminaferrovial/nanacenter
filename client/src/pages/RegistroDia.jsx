@@ -3,13 +3,40 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { addDays, formatFechaLarga, todayStr } from '../utils/date.js';
 
-const SINTOMA_TIPOS = [
-  'Náuseas', 'Dolor lumbar', 'Cansancio', 'Hinchazón', 'Dolor de cabeza',
-  'Mareo', 'Acidez', 'Calambres', 'Dolor pélvico', 'Insomnio'
+export const SINTOMA_TIPOS = [
+  'Náuseas', 'Vómitos', 'Dolor lumbar', 'Cansancio', 'Hinchazón', 'Dolor de cabeza',
+  'Mareo', 'Acidez', 'Calambres', 'Dolor pélvico', 'Insomnio',
+  'Dolor de tetas', 'Gases', 'Cólicos', 'Mal aliento'
 ];
+
+const EJERCICIO_TIPOS = ['Pilates', 'Yoga', 'Movilidad', 'Estiramientos', 'Caminar', 'Fuerza', 'Aeróbic', 'Cardio'];
+const CANTIDAD_POPO = ['poca', 'normal', 'abundante'];
+const COLOR_POPO = ['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado'];
+const INFUSION_TIPOS = ['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien'];
 
 const MOMENTOS = ['mañana', 'tarde', 'noche'];
 const MOMENTO_KEY_MAP = { 'mañana': 'manana', tarde: 'tarde', noche: 'noche' };
+
+const SECTION_IDS = [
+  'sintomas', 'emocional', 'sueno', 'peso', 'nutricion', 'transito', 'ejercicio',
+  'sol', 'medicacion', 'infusiones', 'miccion', 'momentos', 'diario'
+];
+
+const SECTION_FIELDS = {
+  sintomas: ['sintomas'],
+  emocional: ['emocional'],
+  sueno: ['sueno'],
+  peso: ['peso'],
+  nutricion: ['nutricion'],
+  transito: ['transito'],
+  ejercicio: ['ejercicio'],
+  sol: ['exposicionSolar'],
+  medicacion: ['medicacion'],
+  infusiones: ['infusiones'],
+  miccion: ['miccion'],
+  momentos: ['momentos'],
+  diario: ['diario', 'resumenDia']
+};
 
 function emptyRegistro() {
   return {
@@ -17,11 +44,13 @@ function emptyRegistro() {
     emocional: { animo: null, ansiedad: null, estres: null, irritabilidad: null, energia: null, nota: '' },
     sueno: { horas: '', calidad: null, despertares: '', dificultadConciliar: false, sensacionAlDespertar: '', nota: '' },
     peso: '',
-    nutricion: { comidas: '', agua: '', hambre: null, vomitos: false, nota: '' },
+    nutricion: { comidas: '', hambre: null },
     transito: { deposiciones: [], estrenimiento: false, diarrea: false, nota: '' },
     ejercicio: [],
     exposicionSolar: [],
     medicacion: [],
+    infusiones: [],
+    miccion: { frecuencia: '', nota: '' },
     momentos: {
       manana: { nota: '', energia: null },
       tarde: { nota: '', energia: null },
@@ -32,23 +61,44 @@ function emptyRegistro() {
   };
 }
 
-function Section({ id, title, open, hasContent, onToggle, children }) {
+function toggleArrayValue(arr, value) {
+  const lista = arr || [];
+  return lista.includes(value) ? lista.filter((v) => v !== value) : [...lista, value];
+}
+
+function Section({ id, title, open, hasContent, onToggle, onCopy, children }) {
   return (
     <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={() => onToggle(id)}
-        className="w-full flex items-center justify-between px-4 py-3"
-      >
-        <span className="flex items-center gap-2 font-semibold text-rose-600">
+      <div className="w-full flex items-center justify-between px-4 py-3">
+        <button type="button" onClick={() => onToggle(id)} className="flex items-center gap-2 font-semibold text-rose-600 flex-1 text-left">
           {title}
           {hasContent && <span className="w-2 h-2 rounded-full bg-rose-400" aria-hidden="true" />}
-        </span>
-        <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>⌄</span>
-      </button>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {onCopy && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(id);
+              }}
+              className="text-xs text-rose-400 border border-rose-200 rounded-full px-2 py-0.5"
+            >
+              Copiar de ayer
+            </button>
+          )}
+          <button type="button" onClick={() => onToggle(id)} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+            ⌄
+          </button>
+        </div>
+      </div>
       {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
     </section>
   );
+}
+
+function esVacio(v) {
+  return v === '' || v === null || v === undefined;
 }
 
 function hasSintomas(r) {
@@ -60,18 +110,18 @@ function hasEmocional(r) {
 }
 function hasSueno(r) {
   const s = r.sueno;
-  return s.horas !== '' || s.calidad !== null || s.despertares !== '' || s.dificultadConciliar || s.sensacionAlDespertar !== '' || s.nota !== '';
+  return !esVacio(s.horas) || !esVacio(s.calidad) || !esVacio(s.despertares) || s.dificultadConciliar || !esVacio(s.sensacionAlDespertar) || !esVacio(s.nota);
 }
 function hasPeso(r) {
-  return r.peso !== '';
+  return !esVacio(r.peso);
 }
 function hasNutricion(r) {
   const n = r.nutricion;
-  return n.comidas !== '' || n.agua !== '' || n.hambre !== null || n.vomitos || n.nota !== '';
+  return !esVacio(n.comidas) || !esVacio(n.hambre);
 }
 function hasTransito(r) {
   const t = r.transito;
-  return t.deposiciones.length > 0 || t.estrenimiento || t.diarrea || t.nota !== '';
+  return t.deposiciones.length > 0 || t.estrenimiento || t.diarrea || !esVacio(t.nota);
 }
 function hasEjercicio(r) {
   return r.ejercicio.length > 0;
@@ -82,11 +132,17 @@ function hasSol(r) {
 function hasMedicacion(r) {
   return r.medicacion.length > 0;
 }
+function hasInfusiones(r) {
+  return r.infusiones.length > 0;
+}
+function hasMiccion(r) {
+  return !esVacio(r.miccion.frecuencia) || !esVacio(r.miccion.nota);
+}
 function hasMomentos(r) {
-  return Object.values(r.momentos).some((m) => m && (m.energia !== null || m.nota !== ''));
+  return Object.values(r.momentos).some((m) => m && (!esVacio(m.energia) || !esVacio(m.nota)));
 }
 function hasDiario(r) {
-  return r.diario !== '' || r.resumenDia !== '';
+  return !esVacio(r.diario) || !esVacio(r.resumenDia);
 }
 
 function computeOpenSections(registro) {
@@ -100,6 +156,8 @@ function computeOpenSections(registro) {
     ejercicio: hasEjercicio(registro),
     sol: hasSol(registro),
     medicacion: hasMedicacion(registro),
+    infusiones: hasInfusiones(registro),
+    miccion: hasMiccion(registro),
     momentos: hasMomentos(registro),
     diario: hasDiario(registro)
   };
@@ -114,10 +172,10 @@ function Field({ label, children }) {
   );
 }
 
-function ScalePicker({ value, onChange, max = 5 }) {
+function ScalePicker({ value, onChange, max = 10 }) {
   return (
     <div className="flex gap-1 flex-wrap">
-      {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+      {Array.from({ length: max + 1 }, (_, i) => i).map((n) => (
         <button
           key={n}
           type="button"
@@ -296,6 +354,15 @@ export default function RegistroDia() {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
+  function colapsarOExpandirTodo() {
+    const todosAbiertos = SECTION_IDS.every((id) => openSections[id]);
+    const next = {};
+    SECTION_IDS.forEach((id) => {
+      next[id] = !todosAbiertos;
+    });
+    setOpenSections(next);
+  }
+
   function update(path, value) {
     setRegistro((prev) => updateAtPath(prev, path, value));
   }
@@ -318,7 +385,13 @@ export default function RegistroDia() {
   function addDeposicion() {
     setRegistro((prev) => ({
       ...prev,
-      transito: { ...prev.transito, deposiciones: [...prev.transito.deposiciones, { hora: '', tipoBristol: null, dolor: false, nota: '' }] }
+      transito: {
+        ...prev.transito,
+        deposiciones: [
+          ...prev.transito.deposiciones,
+          { hora: '', tipoBristol: null, cantidad: null, color: null, evacuacionCompleta: null, dolor: false, nota: '' }
+        ]
+      }
     }));
   }
 
@@ -339,13 +412,16 @@ export default function RegistroDia() {
     }));
   }
 
-  async function copiarDiaAnterior() {
+  async function copiarSeccion(id) {
     try {
       const anterior = await api.getRegistro(addDays(fecha, -1));
-      const { _id, usuarioId, fecha: _fecha, createdAt, updatedAt, __v, ...resto } = anterior;
-      const merged = { ...emptyRegistro(), ...resto };
-      setRegistro(merged);
-      setOpenSections(computeOpenSections(merged));
+      const campos = SECTION_FIELDS[id];
+      const patch = {};
+      campos.forEach((campo) => {
+        patch[campo] = anterior[campo] !== undefined ? anterior[campo] : emptyRegistro()[campo];
+      });
+      setRegistro((prev) => ({ ...prev, ...patch }));
+      setOpenSections((prev) => ({ ...prev, [id]: true }));
     } catch {
       setErrorMsg('No hay registro del día anterior para copiar.');
       setTimeout(() => setErrorMsg(''), 3000);
@@ -382,17 +458,17 @@ export default function RegistroDia() {
         </div>
         <button
           type="button"
-          onClick={copiarDiaAnterior}
+          onClick={colapsarOExpandirTodo}
           className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1 whitespace-nowrap shrink-0"
         >
-          Copiar día anterior
+          {SECTION_IDS.every((id) => openSections[id]) ? 'Colapsar todo' : 'Expandir todo'}
         </button>
       </div>
 
-      <Section id="sintomas" title="Síntomas" open={!!openSections.sintomas} onToggle={toggleSection} hasContent={hasSintomas(registro)}>
+      <Section id="sintomas" title="Síntomas" open={!!openSections.sintomas} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSintomas(registro)}>
         <div className="flex flex-wrap gap-2">
           {SINTOMA_TIPOS.map((tipo) => (
-            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, momento: 'mañana', intensidad: 5, duracion: '', nota: '' })}>
+            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, momento: [], intensidad: 5, duracion: '', nota: '' })}>
               + {tipo}
             </ToggleChip>
           ))}
@@ -408,13 +484,17 @@ export default function RegistroDia() {
               </div>
               <div className="flex gap-2">
                 {MOMENTOS.map((m) => (
-                  <ToggleChip key={m} active={s.momento === m} onClick={() => updateItem('sintomas', i, { momento: m })}>
+                  <ToggleChip
+                    key={m}
+                    active={(s.momento || []).includes(m)}
+                    onClick={() => updateItem('sintomas', i, { momento: toggleArrayValue(s.momento, m) })}
+                  >
                     {m}
                   </ToggleChip>
                 ))}
               </div>
               <Field label="Intensidad">
-                <ScalePicker value={s.intensidad} onChange={(v) => updateItem('sintomas', i, { intensidad: v })} max={10} />
+                <ScalePicker value={s.intensidad} onChange={(v) => updateItem('sintomas', i, { intensidad: v })} />
               </Field>
               <TextInput placeholder="Nota (opcional)" value={s.nota} onChange={(e) => updateItem('sintomas', i, { nota: e.target.value })} />
             </div>
@@ -422,7 +502,7 @@ export default function RegistroDia() {
         </div>
       </Section>
 
-      <Section id="emocional" title="Estado emocional" open={!!openSections.emocional} onToggle={toggleSection} hasContent={hasEmocional(registro)}>
+      <Section id="emocional" title="Estado emocional" open={!!openSections.emocional} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasEmocional(registro)}>
         <Field label="Ánimo">
           <ScalePicker value={registro.emocional.animo} onChange={(v) => update('emocional.animo', v)} />
         </Field>
@@ -441,7 +521,7 @@ export default function RegistroDia() {
         <TextInput placeholder="Reflexión (opcional)" value={registro.emocional.nota} onChange={(e) => update('emocional.nota', e.target.value)} />
       </Section>
 
-      <Section id="sueno" title="Sueño" open={!!openSections.sueno} onToggle={toggleSection} hasContent={hasSueno(registro)}>
+      <Section id="sueno" title="Sueño" open={!!openSections.sueno} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSueno(registro)}>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Horas dormidas">
             <TextInput type="number" step="0.5" value={registro.sueno.horas} onChange={(e) => update('sueno.horas', e.target.value)} />
@@ -468,29 +548,20 @@ export default function RegistroDia() {
         />
       </Section>
 
-      <Section id="peso" title="Peso" open={!!openSections.peso} onToggle={toggleSection} hasContent={hasPeso(registro)}>
+      <Section id="peso" title="Peso" open={!!openSections.peso} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasPeso(registro)}>
         <TextInput type="number" step="0.1" placeholder="kg" value={registro.peso} onChange={(e) => update('peso', e.target.value)} />
       </Section>
 
-      <Section id="nutricion" title="Alimentación" open={!!openSections.nutricion} onToggle={toggleSection} hasContent={hasNutricion(registro)}>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Comidas">
-            <TextInput type="number" value={registro.nutricion.comidas} onChange={(e) => update('nutricion.comidas', e.target.value)} />
-          </Field>
-          <Field label="Agua (litros)">
-            <TextInput type="number" step="0.1" value={registro.nutricion.agua} onChange={(e) => update('nutricion.agua', e.target.value)} />
-          </Field>
-        </div>
+      <Section id="nutricion" title="Alimentación" open={!!openSections.nutricion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasNutricion(registro)}>
+        <Field label="Número de comidas">
+          <TextInput type="number" value={registro.nutricion.comidas} onChange={(e) => update('nutricion.comidas', e.target.value)} />
+        </Field>
         <Field label="Hambre / apetito">
           <ScalePicker value={registro.nutricion.hambre} onChange={(v) => update('nutricion.hambre', v)} />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={registro.nutricion.vomitos} onChange={(e) => update('nutricion.vomitos', e.target.checked)} />
-          Vómitos tras comer
-        </label>
       </Section>
 
-      <Section id="transito" title="Tránsito intestinal" open={!!openSections.transito} onToggle={toggleSection} hasContent={hasTransito(registro)}>
+      <Section id="transito" title="Tránsito intestinal" open={!!openSections.transito} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasTransito(registro)}>
         <div className="space-y-3">
           {registro.transito.deposiciones.map((dep, i) => (
             <div key={i} className="border border-amber-100 rounded-xl p-3 space-y-2">
@@ -505,6 +576,34 @@ export default function RegistroDia() {
               </Field>
               <Field label="Escala de Bristol">
                 <BristolPicker value={dep.tipoBristol} onChange={(v) => updateDeposicion(i, { tipoBristol: v })} />
+              </Field>
+              <Field label="Cantidad">
+                <div className="flex gap-2">
+                  {CANTIDAD_POPO.map((c) => (
+                    <ToggleChip key={c} active={dep.cantidad === c} onClick={() => updateDeposicion(i, { cantidad: dep.cantidad === c ? null : c })}>
+                      {c}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Color">
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_POPO.map((c) => (
+                    <ToggleChip key={c} active={dep.color === c} onClick={() => updateDeposicion(i, { color: dep.color === c ? null : c })}>
+                      {c}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Evacuación">
+                <div className="flex gap-2">
+                  <ToggleChip active={dep.evacuacionCompleta === true} onClick={() => updateDeposicion(i, { evacuacionCompleta: dep.evacuacionCompleta === true ? null : true })}>
+                    Completa
+                  </ToggleChip>
+                  <ToggleChip active={dep.evacuacionCompleta === false} onClick={() => updateDeposicion(i, { evacuacionCompleta: dep.evacuacionCompleta === false ? null : false })}>
+                    Incompleta
+                  </ToggleChip>
+                </div>
               </Field>
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input type="checkbox" checked={dep.dolor} onChange={(e) => updateDeposicion(i, { dolor: e.target.checked })} />
@@ -533,17 +632,22 @@ export default function RegistroDia() {
         </div>
       </Section>
 
-      <Section id="ejercicio" title="Ejercicio" open={!!openSections.ejercicio} onToggle={toggleSection} hasContent={hasEjercicio(registro)}>
+      <Section id="ejercicio" title="Ejercicio" open={!!openSections.ejercicio} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasEjercicio(registro)}>
         {registro.ejercicio.map((ej, i) => (
           <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
             <div className="flex justify-end">
               <button type="button" onClick={() => removeItem('ejercicio', i)} className="text-gray-400 text-sm">Quitar</button>
             </div>
-            <TextInput placeholder="Tipo (caminar, yoga…)" value={ej.tipo} onChange={(e) => updateItem('ejercicio', i, { tipo: e.target.value })} />
-            <div className="grid grid-cols-2 gap-2">
-              <TextInput type="number" placeholder="Minutos" value={ej.duracion} onChange={(e) => updateItem('ejercicio', i, { duracion: e.target.value })} />
-              <TextInput type="number" placeholder="Pasos" value={ej.pasos} onChange={(e) => updateItem('ejercicio', i, { pasos: e.target.value })} />
-            </div>
+            <Field label="Tipo">
+              <div className="flex flex-wrap gap-2">
+                {EJERCICIO_TIPOS.map((tipo) => (
+                  <ToggleChip key={tipo} active={ej.tipo === tipo} onClick={() => updateItem('ejercicio', i, { tipo })}>
+                    {tipo}
+                  </ToggleChip>
+                ))}
+              </div>
+            </Field>
+            <TextInput type="number" placeholder="Minutos" value={ej.duracion} onChange={(e) => updateItem('ejercicio', i, { duracion: e.target.value })} />
             <div className="flex gap-2">
               {['suave', 'moderada', 'intensa'].map((nivel) => (
                 <ToggleChip key={nivel} active={ej.intensidad === nivel} onClick={() => updateItem('ejercicio', i, { intensidad: nivel })}>
@@ -554,12 +658,12 @@ export default function RegistroDia() {
             <TextInput placeholder="Molestias (opcional)" value={ej.molestias} onChange={(e) => updateItem('ejercicio', i, { molestias: e.target.value })} />
           </div>
         ))}
-        <button type="button" onClick={() => addItem('ejercicio', { tipo: '', duracion: '', intensidad: 'moderada', pasos: '', sensaciones: '', molestias: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
+        <button type="button" onClick={() => addItem('ejercicio', { tipo: null, duracion: '', intensidad: 'moderada', sensaciones: '', molestias: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
           + Añadir ejercicio
         </button>
       </Section>
 
-      <Section id="sol" title="Exposición solar" open={!!openSections.sol} onToggle={toggleSection} hasContent={hasSol(registro)}>
+      <Section id="sol" title="Exposición solar" open={!!openSections.sol} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSol(registro)}>
         {registro.exposicionSolar.map((s, i) => (
           <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
             <div className="flex justify-end">
@@ -590,7 +694,7 @@ export default function RegistroDia() {
         </button>
       </Section>
 
-      <Section id="medicacion" title="Medicación y suplementos" open={!!openSections.medicacion} onToggle={toggleSection} hasContent={hasMedicacion(registro)}>
+      <Section id="medicacion" title="Medicación y suplementos" open={!!openSections.medicacion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMedicacion(registro)}>
         {registro.medicacion.map((m, i) => (
           <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
             <div className="flex justify-end">
@@ -609,7 +713,42 @@ export default function RegistroDia() {
         </button>
       </Section>
 
-      <Section id="momentos" title="Mañana / Tarde / Noche" open={!!openSections.momentos} onToggle={toggleSection} hasContent={hasMomentos(registro)}>
+      <Section id="infusiones" title="Infusiones" open={!!openSections.infusiones} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasInfusiones(registro)}>
+        {registro.infusiones.map((inf, i) => (
+          <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+            <div className="flex justify-end">
+              <button type="button" onClick={() => removeItem('infusiones', i)} className="text-gray-400 text-sm">Quitar</button>
+            </div>
+            <Field label="Tipo (puedes elegir varias)">
+              <div className="flex flex-wrap gap-2">
+                {INFUSION_TIPOS.map((tipo) => (
+                  <ToggleChip
+                    key={tipo}
+                    active={(inf.tipos || []).includes(tipo)}
+                    onClick={() => updateItem('infusiones', i, { tipos: toggleArrayValue(inf.tipos, tipo) })}
+                  >
+                    {tipo}
+                  </ToggleChip>
+                ))}
+              </div>
+            </Field>
+            <TextInput type="time" value={inf.hora} onChange={(e) => updateItem('infusiones', i, { hora: e.target.value })} />
+            <TextInput placeholder="Efecto notado (opcional)" value={inf.efecto} onChange={(e) => updateItem('infusiones', i, { efecto: e.target.value })} />
+          </div>
+        ))}
+        <button type="button" onClick={() => addItem('infusiones', { tipos: [], hora: '', efecto: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
+          + Añadir infusión
+        </button>
+      </Section>
+
+      <Section id="miccion" title="Micción" open={!!openSections.miccion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMiccion(registro)}>
+        <Field label="Frecuencia (veces al día, opcional)">
+          <TextInput type="number" value={registro.miccion.frecuencia} onChange={(e) => update('miccion.frecuencia', e.target.value)} />
+        </Field>
+        <TextInput placeholder="Otros cambios (opcional)" value={registro.miccion.nota} onChange={(e) => update('miccion.nota', e.target.value)} />
+      </Section>
+
+      <Section id="momentos" title="Mañana / Tarde / Noche" open={!!openSections.momentos} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMomentos(registro)}>
         {MOMENTOS.map((m) => {
           const key = MOMENTO_KEY_MAP[m];
           const momento = registro.momentos[key] || {};
@@ -623,7 +762,7 @@ export default function RegistroDia() {
         })}
       </Section>
 
-      <Section id="diario" title="Diario personal" open={!!openSections.diario} onToggle={toggleSection} hasContent={hasDiario(registro)}>
+      <Section id="diario" title="Diario personal" open={!!openSections.diario} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasDiario(registro)}>
         <Field label="Cómo ha ido el día">
           <TextArea
             placeholder="Escribe libremente sobre tu día…"
