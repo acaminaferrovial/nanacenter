@@ -77,7 +77,7 @@ function CalendarioSintomas({ registros }) {
         .filter((s) => s.tipo === sintoma)
         .forEach((s) => {
           const key = fechaKey(r.fecha);
-          const intensidad = s.intensidad ?? 0;
+          const intensidad = Math.max(0, ...(s.momento || []).map((m) => m.intensidad ?? 0));
           if (map[key] === undefined || intensidad > map[key]) map[key] = intensidad;
         });
     });

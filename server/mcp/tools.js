@@ -57,7 +57,7 @@ const suenoSchema = z
 
 const nutricionSchema = z
   .object({
-    comidas: z.number().optional().describe('Número de comidas'),
+    comidas: z.number().min(0).max(5).optional().describe('Número de comidas, de 0 a 5'),
     hambre: escala010.optional().describe('Grado de apetito, de 0 a 10')
   })
   .optional()
@@ -253,13 +253,19 @@ export function registerTools(server) {
       inputSchema: {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         tipo: z.enum(SINTOMA_TIPOS).describe('Tipo de síntoma. Debe ser exactamente uno de los valores de la lista, para que coincida con los que ya usa la app.'),
-        momento: z.array(z.enum(['mañana', 'tarde', 'noche'])).optional().describe('Uno o varios momentos del día en los que ocurrió'),
-        intensidad: escala010.optional(),
+        momento: z
+          .array(
+            z.object({
+              momento: z.enum(['mañana', 'tarde', 'noche']),
+              intensidad: escala010.optional().describe('Intensidad de este síntoma en ese momento concreto, de 0 a 10')
+            })
+          )
+          .describe('Uno o varios momentos del día en los que ocurrió, cada uno con su propia intensidad. Ej: [{"momento":"mañana","intensidad":7},{"momento":"noche","intensidad":2}]'),
         duracion: z.string().optional(),
         nota: z.string().optional()
       }
     },
-    async ({ fecha, tipo, momento, intensidad, duracion, nota }) => {
+    async ({ fecha, tipo, momento, duracion, nota }) => {
       const f = parseFecha(fecha);
       if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
 
@@ -268,7 +274,7 @@ export function registerTools(server) {
       const registro = await Registro.findOneAndUpdate(
         { usuarioId: usuario._id, fecha: f },
         {
-          $push: { sintomas: { tipo, momento, intensidad, duracion, nota } },
+          $push: { sintomas: { tipo, momento, duracion, nota } },
           $set: { ...gestacion, usuarioId: usuario._id, fecha: f }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
@@ -340,6 +346,61 @@ export function registerTools(server) {
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
       );
       return ok(limpiar(registro));
+    }
+  );
+
+  server.registerTool(
+    'anadir_medicacion',
+    {
+      title: 'Añadir medicación o suplemento',
+      description: 'Añade un medicamento o suplemento tomado ese día, sin borrar los que ya hubiera.',
+      inputSchema: {
+        fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
+        nombre: z.string().describe('Nombre del medicamento o suplemento, p.ej. "Ácido fólico"'),
+        dosis: z.string().optional().describe('Dosis, p.ej. "400mcg" o "1 comprimido"'),
+        horario: z.string().optional().describe('Hora aproximada de la toma, p.ej. "09:00"'),
+        motivo: z.string().optional(),
+        efectosSecundarios: z.string().optional()
+      }
+    },
+    async ({ fecha, nombre, dosis, horario, motivo, efectosSecundarios }) => {
+      const f = parseFecha(fecha);
+      if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
+
+      const usuario = await getUsuario();
+      const gestacion = calcularGestacion(usuario.fechaUltimaRegla, f);
+      const registro = await Registro.findOneAndUpdate(
+        { usuarioId: usuario._id, fecha: f },
+        {
+          $push: { medicacion: { nombre, dosis, horario, motivo, efectosSecundarios } },
+          $set: { ...gestacion, usuarioId: usuario._id, fecha: f }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+      );
+      return ok(limpiar(registro));
+    }
+  );
+
+  server.registerTool(
+    'reiniciar_dia',
+    {
+      title: 'Reiniciar un día',
+      description:
+        'Borra por completo todos los datos registrados para una fecha, dejándola como si ese día no se hubiera usado nunca la app. Es irreversible. Solo úsala si el usuario confirma explícitamente que quiere borrar y empezar de cero ese día.',
+      inputSchema: {
+        fecha: z.string().describe('Fecha en formato YYYY-MM-DD')
+      }
+    },
+    async ({ fecha }) => {
+      const f = parseFecha(fecha);
+      if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
+
+      const usuario = await getUsuario();
+      const resultado = await Registro.deleteOne({ usuarioId: usuario._id, fecha: f });
+      if (resultado.deletedCount === 0) {
+        return ok({ fecha, mensaje: 'No había ningún registro guardado para ese día, no había nada que borrar.' });
+      }
+      return ok({ fecha, mensaje: 'Registro del día borrado correctamente. Ese día ha quedado en blanco.' });
     }
   );
 

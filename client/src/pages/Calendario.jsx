@@ -18,13 +18,16 @@ function estadoDia(registro) {
   if (registro.emocional?.animo != null) puntos.push(registro.emocional.animo);
   if (registro.sueno?.calidad != null) puntos.push(registro.sueno.calidad);
   if (registro.sintomas?.length) {
-    const media = registro.sintomas.reduce((s, x) => s + (x.intensidad || 0), 0) / registro.sintomas.length;
-    puntos.push(6 - media / 2);
+    const intensidades = registro.sintomas.flatMap((s) => (s.momento || []).map((m) => m.intensidad ?? 0));
+    if (intensidades.length > 0) {
+      const media = intensidades.reduce((a, b) => a + b, 0) / intensidades.length;
+      puntos.push(10 - media);
+    }
   }
   if (puntos.length === 0) return 'sinDatos';
   const media = puntos.reduce((a, b) => a + b, 0) / puntos.length;
-  if (media >= 3.5) return 'bien';
-  if (media >= 2.5) return 'regular';
+  if (media >= 7) return 'bien';
+  if (media >= 4) return 'regular';
   return 'mal';
 }
 

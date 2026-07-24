@@ -1,10 +1,17 @@
 import mongoose from 'mongoose';
 
+const sintomaMomentoSchema = new mongoose.Schema(
+  {
+    momento: { type: String, enum: ['mañana', 'tarde', 'noche'] },
+    intensidad: { type: Number, min: 0, max: 10 }
+  },
+  { _id: false }
+);
+
 const sintomaSchema = new mongoose.Schema(
   {
     tipo: String,
-    momento: [{ type: String, enum: ['mañana', 'tarde', 'noche'] }],
-    intensidad: { type: Number, min: 0, max: 10 },
+    momento: [sintomaMomentoSchema],
     duracion: String,
     nota: String
   },
@@ -118,7 +125,7 @@ const registroSchema = new mongoose.Schema(
     },
     peso: Number,
     nutricion: {
-      comidas: Number,
+      comidas: { type: Number, min: 0, max: 5 },
       hambre: { type: Number, min: 0, max: 10 }
     },
     transito: {

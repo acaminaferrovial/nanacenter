@@ -468,7 +468,7 @@ export default function RegistroDia() {
       <Section id="sintomas" title="Síntomas" open={!!openSections.sintomas} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSintomas(registro)}>
         <div className="flex flex-wrap gap-2">
           {SINTOMA_TIPOS.map((tipo) => (
-            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, momento: [], intensidad: 5, duracion: '', nota: '' })}>
+            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, momento: [], duracion: '', nota: '' })}>
               + {tipo}
             </ToggleChip>
           ))}
@@ -482,20 +482,37 @@ export default function RegistroDia() {
                   Quitar
                 </button>
               </div>
-              <div className="flex gap-2">
-                {MOMENTOS.map((m) => (
-                  <ToggleChip
-                    key={m}
-                    active={(s.momento || []).includes(m)}
-                    onClick={() => updateItem('sintomas', i, { momento: toggleArrayValue(s.momento, m) })}
-                  >
-                    {m}
-                  </ToggleChip>
-                ))}
+              <div className="space-y-2">
+                {MOMENTOS.map((m) => {
+                  const entrada = (s.momento || []).find((x) => x.momento === m);
+                  return (
+                    <div key={m} className="space-y-1">
+                      <ToggleChip
+                        active={!!entrada}
+                        onClick={() =>
+                          updateItem('sintomas', i, {
+                            momento: entrada
+                              ? s.momento.filter((x) => x.momento !== m)
+                              : [...(s.momento || []), { momento: m, intensidad: 5 }]
+                          })
+                        }
+                      >
+                        {m}
+                      </ToggleChip>
+                      {entrada && (
+                        <ScalePicker
+                          value={entrada.intensidad}
+                          onChange={(v) =>
+                            updateItem('sintomas', i, {
+                              momento: s.momento.map((x) => (x.momento === m ? { ...x, intensidad: v } : x))
+                            })
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <Field label="Intensidad">
-                <ScalePicker value={s.intensidad} onChange={(v) => updateItem('sintomas', i, { intensidad: v })} />
-              </Field>
               <TextInput placeholder="Nota (opcional)" value={s.nota} onChange={(e) => updateItem('sintomas', i, { nota: e.target.value })} />
             </div>
           ))}
@@ -554,7 +571,7 @@ export default function RegistroDia() {
 
       <Section id="nutricion" title="Alimentación" open={!!openSections.nutricion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasNutricion(registro)}>
         <Field label="Número de comidas">
-          <TextInput type="number" value={registro.nutricion.comidas} onChange={(e) => update('nutricion.comidas', e.target.value)} />
+          <ScalePicker value={registro.nutricion.comidas} onChange={(v) => update('nutricion.comidas', v)} max={5} />
         </Field>
         <Field label="Hambre / apetito">
           <ScalePicker value={registro.nutricion.hambre} onChange={(v) => update('nutricion.hambre', v)} />

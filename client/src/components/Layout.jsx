@@ -21,7 +21,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-rose-50">
       <header className="flex items-center justify-between px-4 py-2 bg-white border-b border-rose-100">
-        <span className="font-bold text-rose-600">GestaBien</span>
+        <span className="font-bold text-rose-600">Ñaña Center</span>
         <button
           type="button"
           onClick={handleLogout}

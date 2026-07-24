@@ -20,7 +20,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-rose-50 px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white rounded-2xl shadow p-6 space-y-4">
-        <h1 className="text-2xl font-bold text-rose-600 text-center">GestaBien</h1>
+        <h1 className="text-2xl font-bold text-rose-600 text-center">Ñaña Center</h1>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input
