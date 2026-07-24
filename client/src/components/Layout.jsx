@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import logo from '../assets/logo.jpg';
 
 const tabs = [
   { to: '/', label: 'Hoy', icon: '📋' },
@@ -21,7 +22,10 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-rose-50">
       <header className="flex items-center justify-between px-4 py-2 bg-white border-b border-rose-100">
-        <span className="font-bold text-rose-600">Ñaña Center</span>
+        <span className="flex items-center gap-2">
+          <img src={logo} alt="" className="w-8 h-8 rounded-full object-cover" />
+          <span className="font-bold text-rose-600">Ñaña Center</span>
+        </span>
         <button
           type="button"
           onClick={handleLogout}
