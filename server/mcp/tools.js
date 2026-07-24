@@ -222,9 +222,9 @@ export function registerTools(server) {
       if (momentoManana || momentoTarde || momentoNoche) {
         const momentosExistentes = objSubdoc(existente?.momentos);
         set.momentos = {
-          manana: momentoManana ? { ...objSubdoc(momentosExistentes.manana), ...momentoManana } : momentosExistentes.manana,
-          tarde: momentoTarde ? { ...objSubdoc(momentosExistentes.tarde), ...momentoTarde } : momentosExistentes.tarde,
-          noche: momentoNoche ? { ...objSubdoc(momentosExistentes.noche), ...momentoNoche } : momentosExistentes.noche
+          manana: { ...objSubdoc(momentosExistentes.manana), ...momentoManana },
+          tarde: { ...objSubdoc(momentosExistentes.tarde), ...momentoTarde },
+          noche: { ...objSubdoc(momentosExistentes.noche), ...momentoNoche }
         };
       }
 

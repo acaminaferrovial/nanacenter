@@ -83,7 +83,7 @@ function hasMedicacion(r) {
   return r.medicacion.length > 0;
 }
 function hasMomentos(r) {
-  return Object.values(r.momentos).some((m) => m.energia !== null || m.nota !== '');
+  return Object.values(r.momentos).some((m) => m && (m.energia !== null || m.nota !== ''));
 }
 function hasDiario(r) {
   return r.diario !== '' || r.resumenDia !== '';
@@ -612,11 +612,12 @@ export default function RegistroDia() {
       <Section id="momentos" title="Mañana / Tarde / Noche" open={!!openSections.momentos} onToggle={toggleSection} hasContent={hasMomentos(registro)}>
         {MOMENTOS.map((m) => {
           const key = MOMENTO_KEY_MAP[m];
+          const momento = registro.momentos[key] || {};
           return (
             <div key={m} className="space-y-1">
               <span className="text-sm font-medium capitalize">{m}</span>
-              <ScalePicker value={registro.momentos[key].energia} onChange={(v) => update(`momentos.${key}.energia`, v)} />
-              <TextInput placeholder="Nota" value={registro.momentos[key].nota} onChange={(e) => update(`momentos.${key}.nota`, e.target.value)} />
+              <ScalePicker value={momento.energia} onChange={(v) => update(`momentos.${key}.energia`, v)} />
+              <TextInput placeholder="Nota" value={momento.nota} onChange={(e) => update(`momentos.${key}.nota`, e.target.value)} />
             </div>
           );
         })}
