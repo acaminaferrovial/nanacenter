@@ -3,6 +3,14 @@ import { api } from '../api/client.js';
 import { addDays, calcularGestacion, fechaKey, formatFechaLarga, todayStr } from '../utils/date.js';
 
 const TIPOS_CITA = ['Ecografía', 'Ginecología', 'Matrona', 'Analítica', 'Otra'];
+const FOTOTIPOS = [
+  { valor: 1, label: 'I · Muy clara, siempre se quema' },
+  { valor: 2, label: 'II · Clara, se quema fácil' },
+  { valor: 3, label: 'III · Media, a veces se quema' },
+  { valor: 4, label: 'IV · Oliva, rara vez se quema' },
+  { valor: 5, label: 'V · Morena, casi nunca se quema' },
+  { valor: 6, label: 'VI · Muy oscura, nunca se quema' }
+];
 
 function Card({ title, children }) {
   return (
@@ -39,6 +47,9 @@ export default function Embarazo() {
 
   const [fumInput, setFumInput] = useState('');
   const [fppInput, setFppInput] = useState('');
+  const [alturaInput, setAlturaInput] = useState('');
+  const [fototipoInput, setFototipoInput] = useState('');
+  const [edadInput, setEdadInput] = useState('');
   const [savingPerfil, setSavingPerfil] = useState(false);
 
   const [formCita, setFormCita] = useState(null);
@@ -52,6 +63,9 @@ export default function Embarazo() {
     setRegistros(r);
     setFumInput(p.fechaUltimaRegla ? fechaKey(p.fechaUltimaRegla) : '');
     setFppInput(p.fechaProbableParto ? fechaKey(p.fechaProbableParto) : '');
+    setAlturaInput(p.alturaCm ?? '');
+    setFototipoInput(p.fototipo ?? '');
+    setEdadInput(p.edad ?? '');
   }
 
   useEffect(() => {
@@ -95,7 +109,10 @@ export default function Embarazo() {
     try {
       const p = await api.actualizarPerfil({
         fechaUltimaRegla: fumInput || null,
-        fechaProbableParto: fppInput || null
+        fechaProbableParto: fppInput || null,
+        alturaCm: alturaInput === '' ? null : Number(alturaInput),
+        fototipo: fototipoInput === '' ? null : Number(fototipoInput),
+        edad: edadInput === '' ? null : Number(edadInput)
       });
       setPerfil(p);
     } catch (err) {
@@ -243,13 +260,40 @@ export default function Embarazo() {
             <TextInput type="date" value={fppInput} onChange={(e) => handleFppChange(e.target.value)} />
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+          <div>
+            <span className="block text-sm text-gray-600 mb-1">Altura (cm)</span>
+            <TextInput type="number" value={alturaInput} onChange={(e) => setAlturaInput(e.target.value)} />
+          </div>
+          <div>
+            <span className="block text-sm text-gray-600 mb-1">Edad</span>
+            <TextInput type="number" value={edadInput} onChange={(e) => setEdadInput(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <span className="block text-sm text-gray-600 mb-1">Fototipo de piel</span>
+          <select
+            value={fototipoInput}
+            onChange={(e) => setFototipoInput(e.target.value)}
+            className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+          >
+            <option value="">Sin especificar</option>
+            {FOTOTIPOS.map((f) => (
+              <option key={f.valor} value={f.valor}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Se usa para estimar el índice UV seguro y la vitamina D en Exposición solar.</p>
+        </div>
         <button
           type="button"
           onClick={guardarPerfil}
           disabled={savingPerfil}
           className="w-full bg-rose-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
         >
-          {savingPerfil ? 'Guardando…' : 'Guardar fechas'}
+          {savingPerfil ? 'Guardando…' : 'Guardar datos'}
         </button>
       </Card>
 

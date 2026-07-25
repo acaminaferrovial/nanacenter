@@ -32,6 +32,11 @@ const ejercicioSchema = new mongoose.Schema(
 
 const exposicionSolarSchema = new mongoose.Schema(
   {
+    ubicacion: String,
+    uvIndex: Number,
+    bsaFraccion: Number,
+    porcentajeTiempoSeguro: Number,
+    vitaminaDIU: Number,
     horaInicio: String,
     duracion: Number,
     momentoDia: { type: String, enum: ['mañana', 'tarde', 'noche'] },

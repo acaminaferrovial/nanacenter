@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { addDays, formatFechaLarga, todayStr } from '../utils/date.js';
+import { calcularExposicionUV, IU_MAXIMO_SESION } from '../utils/vitaminaD.js';
 
 export const SINTOMA_TIPOS = [
   'Náuseas', 'Vómitos', 'Dolor lumbar', 'Cansancio', 'Hinchazón', 'Dolor de cabeza',
@@ -13,6 +14,15 @@ const EJERCICIO_TIPOS = ['Pilates', 'Yoga', 'Movilidad', 'Estiramientos', 'Camin
 const CANTIDAD_POPO = ['poca', 'normal', 'abundante'];
 const COLOR_POPO = ['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado'];
 const INFUSION_TIPOS = ['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien'];
+const UBICACIONES = ['Casa'];
+const PARTES_CUERPO_OPCIONES = [
+  { label: 'Cara y manos', valor: 0.1 },
+  { label: 'Camiseta y pantalón corto', valor: 0.3 },
+  { label: 'Tirantes y pantalón corto', valor: 0.5 },
+  { label: 'Bañador', valor: 0.7 },
+  { label: 'Cuerpo entero', valor: 1 }
+];
+const BSA_POR_DEFECTO = 1;
 
 const MOMENTOS = ['mañana', 'tarde', 'noche'];
 const MOMENTO_KEY_MAP = { 'mañana': 'manana', tarde: 'tarde', noche: 'noche' };
@@ -325,6 +335,13 @@ export default function RegistroDia() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [uvCargando, setUvCargando] = useState({});
+  const [uvError, setUvError] = useState({});
+  const [perfil, setPerfil] = useState(null);
+
+  useEffect(() => {
+    api.getPerfil().then(setPerfil).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -425,6 +442,37 @@ export default function RegistroDia() {
     } catch {
       setErrorMsg('No hay registro del día anterior para copiar.');
       setTimeout(() => setErrorMsg(''), 3000);
+    }
+  }
+
+  async function recalcularExposicion(index, overrides = {}) {
+    const entrada = { ...registro.exposicionSolar[index], ...overrides };
+    const { ubicacion, horaInicio, duracion, spf, factorSpf, bsaFraccion } = entrada;
+    if (!ubicacion || !horaInicio) return;
+
+    setUvCargando((prev) => ({ ...prev, [index]: true }));
+    setUvError((prev) => ({ ...prev, [index]: '' }));
+    try {
+      const { uvIndex } = await api.consultarUV(ubicacion, fecha, horaInicio, Number(duracion) || 0);
+      const resultado = calcularExposicionUV({
+        uvIndex,
+        duracionMin: Number(duracion) || 0,
+        fototipo: perfil?.fototipo,
+        alturaCm: perfil?.alturaCm,
+        pesoKg: Number(registro.peso) || null,
+        edad: perfil?.edad,
+        bsaFraccion,
+        spfFactor: spf ? Number(factorSpf) || 1 : 1
+      });
+      updateItem('exposicionSolar', index, {
+        uvIndex,
+        porcentajeTiempoSeguro: resultado?.porcentajeTiempoSeguro ?? null,
+        vitaminaDIU: resultado?.vitaminaDIU ?? null
+      });
+    } catch {
+      setUvError((prev) => ({ ...prev, [index]: 'No se pudo calcular el UV' }));
+    } finally {
+      setUvCargando((prev) => ({ ...prev, [index]: false }));
     }
   }
 
@@ -681,6 +729,26 @@ export default function RegistroDia() {
       </Section>
 
       <Section id="sol" title="Exposición solar" open={!!openSections.sol} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSol(registro)}>
+        {(() => {
+          const totalDia = registro.exposicionSolar.reduce((suma, e) => suma + (e.vitaminaDIU || 0), 0);
+          const porcentaje = Math.min(100, Math.round((totalDia / IU_MAXIMO_SESION) * 100));
+          return (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Vitamina D de hoy</span>
+                <span className="font-medium text-amber-700">
+                  {totalDia.toLocaleString('es-ES')} / {IU_MAXIMO_SESION.toLocaleString('es-ES')} UI
+                </span>
+              </div>
+              <div className="w-full bg-amber-100 rounded-full h-2.5">
+                <div className="bg-amber-500 h-2.5 rounded-full transition-all" style={{ width: `${porcentaje}%` }} />
+              </div>
+              {totalDia >= IU_MAXIMO_SESION && (
+                <p className="text-[11px] text-amber-700">Máximo diario alcanzado: la piel ya no produce más por hoy.</p>
+              )}
+            </div>
+          );
+        })()}
         {registro.exposicionSolar.map((s, i) => (
           <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
             <div className="flex justify-end">
@@ -693,20 +761,115 @@ export default function RegistroDia() {
                 </ToggleChip>
               ))}
             </div>
+            <Field label="Ubicación">
+              <select
+                value={s.ubicacion || UBICACIONES[0]}
+                onChange={(e) => {
+                  updateItem('exposicionSolar', i, { ubicacion: e.target.value });
+                  recalcularExposicion(i, { ubicacion: e.target.value });
+                }}
+                className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+              >
+                {UBICACIONES.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <div className="grid grid-cols-2 gap-2">
-              <TextInput type="time" value={s.horaInicio} onChange={(e) => updateItem('exposicionSolar', i, { horaInicio: e.target.value })} />
-              <TextInput type="number" placeholder="Minutos" value={s.duracion} onChange={(e) => updateItem('exposicionSolar', i, { duracion: e.target.value })} />
+              <TextInput
+                type="time"
+                value={s.horaInicio}
+                onChange={(e) => {
+                  updateItem('exposicionSolar', i, { horaInicio: e.target.value });
+                  recalcularExposicion(i, { horaInicio: e.target.value });
+                }}
+              />
+              <TextInput
+                type="number"
+                placeholder="Minutos"
+                value={s.duracion}
+                onChange={(e) => {
+                  updateItem('exposicionSolar', i, { duracion: e.target.value });
+                  recalcularExposicion(i, { duracion: e.target.value });
+                }}
+              />
             </div>
+            <Field label="Parte del cuerpo expuesta">
+              <div className="flex flex-wrap gap-2">
+                {PARTES_CUERPO_OPCIONES.map((op) => (
+                  <ToggleChip
+                    key={op.valor}
+                    active={(s.bsaFraccion ?? BSA_POR_DEFECTO) === op.valor}
+                    onClick={() => {
+                      updateItem('exposicionSolar', i, { bsaFraccion: op.valor });
+                      recalcularExposicion(i, { bsaFraccion: op.valor });
+                    }}
+                  >
+                    {op.label}
+                  </ToggleChip>
+                ))}
+              </div>
+            </Field>
+            {uvCargando[i] && <p className="text-xs text-gray-400">Calculando…</p>}
+            {uvError[i] && <p className="text-xs text-red-500">{uvError[i]}</p>}
+            {!uvCargando[i] && !uvError[i] && s.uvIndex != null && (
+              <div className="text-xs text-amber-700 space-y-0.5 bg-amber-50 rounded-lg p-2">
+                <p>Índice UV {Number(s.duracion) > 0 ? 'medio durante la exposición' : 'en ese momento'}: {s.uvIndex}</p>
+                {s.porcentajeTiempoSeguro != null && <p>Tiempo seguro usado: {s.porcentajeTiempoSeguro}%</p>}
+                {s.vitaminaDIU != null && <p>Vitamina D estimada: {s.vitaminaDIU} UI</p>}
+                {(s.porcentajeTiempoSeguro == null || s.vitaminaDIU == null) && (!perfil?.fototipo || !perfil?.alturaCm) && (
+                  <p className="text-gray-500">Añade altura y fototipo en Embarazo para calcular el % seguro y la vitamina D.</p>
+                )}
+                <p className="text-gray-400">(Estimación aproximada, no una medición clínica)</p>
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" checked={s.spf} onChange={(e) => updateItem('exposicionSolar', i, { spf: e.target.checked })} />
+              <input
+                type="checkbox"
+                checked={s.spf}
+                onChange={(e) => {
+                  updateItem('exposicionSolar', i, { spf: e.target.checked });
+                  recalcularExposicion(i, { spf: e.target.checked });
+                }}
+              />
               Con protección solar
             </label>
             {s.spf && (
-              <TextInput type="number" placeholder="Factor SPF" value={s.factorSpf} onChange={(e) => updateItem('exposicionSolar', i, { factorSpf: e.target.value })} />
+              <TextInput
+                type="number"
+                placeholder="Factor SPF"
+                value={s.factorSpf}
+                onChange={(e) => {
+                  updateItem('exposicionSolar', i, { factorSpf: e.target.value });
+                  recalcularExposicion(i, { factorSpf: e.target.value });
+                }}
+              />
             )}
           </div>
         ))}
-        <button type="button" onClick={() => addItem('exposicionSolar', { horaInicio: '', duracion: '', momentoDia: 'mañana', spf: false, factorSpf: '', partesExpuestas: [], directa: true, nota: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
+        <button
+          type="button"
+          onClick={() =>
+            addItem('exposicionSolar', {
+              ubicacion: UBICACIONES[0],
+              uvIndex: null,
+              bsaFraccion: BSA_POR_DEFECTO,
+              porcentajeTiempoSeguro: null,
+              vitaminaDIU: null,
+              horaInicio: '',
+              duracion: '',
+              momentoDia: 'mañana',
+              spf: false,
+              factorSpf: '',
+              partesExpuestas: [],
+              directa: true,
+              nota: ''
+            })
+          }
+          className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1"
+        >
           + Añadir exposición solar
         </button>
       </Section>

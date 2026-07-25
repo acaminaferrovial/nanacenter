@@ -283,6 +283,17 @@ export default function Evolucion() {
     [registrosFiltrados]
   );
 
+  const datosVitaminaD = useMemo(
+    () =>
+      registrosFiltrados
+        .map((r) => {
+          const total = (r.exposicionSolar || []).reduce((suma, e) => suma + (e.vitaminaDIU || 0), 0);
+          return { fecha: formatFechaCorta(fechaKey(r.fecha)), 'Vitamina D (UI)': total };
+        })
+        .filter((d) => d['Vitamina D (UI)'] > 0),
+    [registrosFiltrados]
+  );
+
   const datosTransito = useMemo(
     () =>
       registrosFiltrados
@@ -408,6 +419,22 @@ export default function Evolucion() {
               <Bar dataKey="Náuseas" fill="#f59e0b" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Vómitos" fill="#e11d48" radius={[4, 4, 0, 0]} />
             </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <SinDatos />
+        )}
+      </Card>
+
+      <Card title="Vitamina D por el sol">
+        {datosVitaminaD.length > 0 ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={datosVitaminaD}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
+              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Line type="monotone" dataKey="Vitamina D (UI)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
           </ResponsiveContainer>
         ) : (
           <SinDatos />

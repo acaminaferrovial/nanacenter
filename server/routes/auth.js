@@ -49,11 +49,14 @@ router.patch(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { nombre, fechaUltimaRegla, fechaProbableParto } = req.body;
+    const { nombre, fechaUltimaRegla, fechaProbableParto, alturaCm, fototipo, edad } = req.body;
     const datos = {};
     if (nombre !== undefined) datos.nombre = nombre;
     if (fechaUltimaRegla !== undefined) datos.fechaUltimaRegla = fechaUltimaRegla ? new Date(fechaUltimaRegla) : null;
     if (fechaProbableParto !== undefined) datos.fechaProbableParto = fechaProbableParto ? new Date(fechaProbableParto) : null;
+    if (alturaCm !== undefined) datos.alturaCm = alturaCm;
+    if (fototipo !== undefined) datos.fototipo = fototipo;
+    if (edad !== undefined) datos.edad = edad;
 
     const user = await User.findByIdAndUpdate(req.userId, { $set: datos }, { new: true, runValidators: true }).select(
       '-passwordHash'

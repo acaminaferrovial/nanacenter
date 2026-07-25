@@ -36,6 +36,10 @@ export const api = {
   getSemana: (n) => request(`/registros/semana/${n}`),
   getPerfil: () => request('/auth/me'),
   actualizarPerfil: (datos) => request('/auth/me', { method: 'PATCH', body: datos }),
+  consultarUV: (ubicacion, fecha, hora, duracion) =>
+    request(
+      `/uv?ubicacion=${encodeURIComponent(ubicacion)}&fecha=${fecha}&hora=${hora}&duracion=${duracion || 0}`
+    ),
   subirArchivo: async (file) => {
     const firma = await request('/upload/firma');
 

@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     nombre: { type: String, default: '' },
     fechaUltimaRegla: { type: Date },
-    fechaProbableParto: { type: Date }
+    fechaProbableParto: { type: Date },
+    alturaCm: { type: Number },
+    fototipo: { type: Number, min: 1, max: 6 },
+    edad: { type: Number }
   },
   { timestamps: true }
 );
