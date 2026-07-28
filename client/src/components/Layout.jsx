@@ -1,5 +1,7 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api/client.js';
 import logo from '../assets/logo.jpg';
 
 const tabs = [
@@ -13,6 +15,26 @@ const tabs = [
 export default function Layout() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [avisoPolar, setAvisoPolar] = useState('');
+  const yaProcesado = useRef(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    if (!code || yaProcesado.current) return;
+    yaProcesado.current = true;
+
+    api
+      .conectarPolarConCodigo(code)
+      .then(() => setAvisoPolar('Cuenta de Polar Flow conectada correctamente.'))
+      .catch((err) => setAvisoPolar('No se pudo conectar con Polar: ' + err.message))
+      .finally(() => {
+        navigate(location.pathname, { replace: true });
+        setTimeout(() => setAvisoPolar(''), 5000);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleLogout() {
     logout();
@@ -35,6 +57,9 @@ export default function Layout() {
           Salir
         </button>
       </header>
+      {avisoPolar && (
+        <div className="bg-amber-100 text-amber-800 text-sm text-center py-1.5 px-2">{avisoPolar}</div>
+      )}
       <main className="flex-1 overflow-y-auto pb-20">
         <Outlet />
       </main>

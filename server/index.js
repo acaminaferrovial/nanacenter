@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import registrosRoutes from './routes/registros.js';
 import uploadRoutes from './routes/upload.js';
 import uvRoutes from './routes/uv.js';
+import polarRoutes from './routes/polar.js';
 import mcpRoutes from './routes/mcp.js';
 
 if (!process.env.MONGODB_URI && !process.env.JWT_SECRET) {
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/registros', requireAuth, registrosRoutes);
 app.use('/api/upload', requireAuth, uploadRoutes);
 app.use('/api/uv', requireAuth, uvRoutes);
+app.use('/api/polar', requireAuth, polarRoutes);
 app.use('/mcp/:token', requireMcpAuth, mcpRoutes);
 app.use('/mcp', requireMcpAuth, mcpRoutes);
 

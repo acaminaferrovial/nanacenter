@@ -57,8 +57,11 @@ export default function Embarazo() {
   const [savingCita, setSavingCita] = useState(false);
   const [subiendoArchivo, setSubiendoArchivo] = useState(false);
 
+  const [polarConectado, setPolarConectado] = useState(false);
+  const [conectandoPolar, setConectandoPolar] = useState(false);
+
   async function cargarTodo() {
-    const [p, r] = await Promise.all([api.getPerfil(), api.getRegistros()]);
+    const [p, r, polar] = await Promise.all([api.getPerfil(), api.getRegistros(), api.estadoPolar()]);
     setPerfil(p);
     setRegistros(r);
     setFumInput(p.fechaUltimaRegla ? fechaKey(p.fechaUltimaRegla) : '');
@@ -66,6 +69,18 @@ export default function Embarazo() {
     setAlturaInput(p.alturaCm ?? '');
     setFototipoInput(p.fototipo ?? '');
     setEdadInput(p.edad ?? '');
+    setPolarConectado(!!polar.conectado);
+  }
+
+  async function conectarPolar() {
+    setConectandoPolar(true);
+    try {
+      const { url } = await api.urlAutorizacionPolar();
+      window.location.href = url;
+    } catch (err) {
+      setErrorMsg(err.message);
+      setConectandoPolar(false);
+    }
   }
 
   useEffect(() => {
@@ -246,6 +261,29 @@ export default function Embarazo() {
           <p className="text-sm text-gray-400 text-center py-2">
             Añade la fecha de última regla o la fecha probable de parto para ver la semana de embarazo.
           </p>
+        )}
+      </Card>
+
+      <Card title="Polar Flow">
+        {polarConectado ? (
+          <p className="text-sm text-emerald-600 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Cuenta conectada
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-gray-500">
+              Conecta la cuenta de Polar Flow de Cristina para poder traer ejercicios, sueño, actividad diaria y
+              recuperación nocturna directamente desde el reloj, en vez de escribirlos a mano.
+            </p>
+            <button
+              type="button"
+              onClick={conectarPolar}
+              disabled={conectandoPolar}
+              className="w-full bg-rose-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
+            >
+              {conectandoPolar ? 'Conectando…' : 'Conectar con Polar Flow'}
+            </button>
+          </>
         )}
       </Card>
 

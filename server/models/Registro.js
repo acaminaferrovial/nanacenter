@@ -25,7 +25,15 @@ const ejercicioSchema = new mongoose.Schema(
     intensidad: { type: String, enum: ['suave', 'moderada', 'intensa'] },
     frecuenciaCardiaca: Number,
     sensaciones: String,
-    molestias: String
+    molestias: String,
+    // Campos que rellena la sincronización con Polar Flow (fuente: 'polar')
+    fuente: { type: String, enum: ['manual', 'polar'], default: 'manual' },
+    polarId: String,
+    deportePolar: String,
+    calorias: Number,
+    distanciaKm: Number,
+    fcMedia: Number,
+    fcMaxima: Number
   },
   { _id: false }
 );
@@ -126,7 +134,12 @@ const registroSchema = new mongoose.Schema(
       despertares: Number,
       dificultadConciliar: Boolean,
       sensacionAlDespertar: String,
-      nota: String
+      nota: String,
+      // Campos que rellena la sincronización con Polar Flow
+      fuente: { type: String, enum: ['manual', 'polar'] },
+      faseProfundoMin: Number,
+      faseREMMin: Number,
+      puntuacion: Number
     },
     peso: Number,
     nutricion: {
@@ -146,6 +159,18 @@ const registroSchema = new mongoose.Schema(
     miccion: {
       frecuencia: Number,
       nota: String
+    },
+    actividad: {
+      pasos: Number,
+      caloriasActivas: Number,
+      porcentajeActividad: Number,
+      fuente: { type: String, enum: ['manual', 'polar'] }
+    },
+    recuperacion: {
+      ansCharge: Number,
+      hrvMs: Number,
+      frecuenciaRespiratoria: Number,
+      fuente: { type: String, enum: ['manual', 'polar'] }
     },
     citasMedicas: [citaMedicaSchema],
     diario: String,

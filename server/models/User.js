@@ -9,7 +9,9 @@ const userSchema = new mongoose.Schema(
     fechaProbableParto: { type: Date },
     alturaCm: { type: Number },
     fototipo: { type: Number, min: 1, max: 6 },
-    edad: { type: Number }
+    edad: { type: Number },
+    polarAccessToken: { type: String },
+    polarUserId: { type: String }
   },
   { timestamps: true }
 );

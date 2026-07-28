@@ -40,6 +40,10 @@ export const api = {
     request(
       `/uv?ubicacion=${encodeURIComponent(ubicacion)}&fecha=${fecha}&hora=${hora}&duracion=${duracion || 0}`
     ),
+  estadoPolar: () => request('/polar/estado'),
+  urlAutorizacionPolar: () => request('/polar/url-autorizacion'),
+  conectarPolarConCodigo: (code) => request('/polar/token', { method: 'POST', body: { code } }),
+  sincronizarPolar: (tipo, fecha) => request(`/polar/sincronizar/${tipo}`, { method: 'POST', body: { fecha } }),
   subirArchivo: async (file) => {
     const firma = await request('/upload/firma');
 

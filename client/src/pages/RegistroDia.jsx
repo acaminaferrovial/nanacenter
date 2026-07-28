@@ -28,8 +28,8 @@ const MOMENTOS = ['mañana', 'tarde', 'noche'];
 const MOMENTO_KEY_MAP = { 'mañana': 'manana', tarde: 'tarde', noche: 'noche' };
 
 const SECTION_IDS = [
-  'sintomas', 'emocional', 'sueno', 'peso', 'nutricion', 'transito', 'ejercicio',
-  'sol', 'medicacion', 'infusiones', 'miccion', 'momentos', 'diario'
+  'sintomas', 'emocional', 'sueno', 'recuperacion', 'peso', 'nutricion', 'transito', 'ejercicio',
+  'actividad', 'sol', 'medicacion', 'infusiones', 'miccion', 'momentos', 'diario'
 ];
 
 const SECTION_FIELDS = {
@@ -40,6 +40,8 @@ const SECTION_FIELDS = {
   nutricion: ['nutricion'],
   transito: ['transito'],
   ejercicio: ['ejercicio'],
+  actividad: ['actividad'],
+  recuperacion: ['recuperacion'],
   sol: ['exposicionSolar'],
   medicacion: ['medicacion'],
   infusiones: ['infusiones'],
@@ -57,6 +59,8 @@ function emptyRegistro() {
     nutricion: { comidas: '', hambre: null },
     transito: { deposiciones: [], estrenimiento: false, diarrea: false, nota: '' },
     ejercicio: [],
+    actividad: { pasos: '', caloriasActivas: '', porcentajeActividad: '', fuente: null },
+    recuperacion: { ansCharge: '', hrvMs: '', frecuenciaRespiratoria: '', fuente: null },
     exposicionSolar: [],
     medicacion: [],
     infusiones: [],
@@ -136,6 +140,12 @@ function hasTransito(r) {
 function hasEjercicio(r) {
   return r.ejercicio.length > 0;
 }
+function hasActividad(r) {
+  return !esVacio(r.actividad?.pasos) || !esVacio(r.actividad?.caloriasActivas) || !esVacio(r.actividad?.porcentajeActividad);
+}
+function hasRecuperacion(r) {
+  return !esVacio(r.recuperacion?.ansCharge) || !esVacio(r.recuperacion?.hrvMs) || !esVacio(r.recuperacion?.frecuenciaRespiratoria);
+}
 function hasSol(r) {
   return r.exposicionSolar.length > 0;
 }
@@ -164,6 +174,8 @@ function computeOpenSections(registro) {
     nutricion: hasNutricion(registro),
     transito: hasTransito(registro),
     ejercicio: hasEjercicio(registro),
+    actividad: hasActividad(registro),
+    recuperacion: hasRecuperacion(registro),
     sol: hasSol(registro),
     medicacion: hasMedicacion(registro),
     infusiones: hasInfusiones(registro),
@@ -171,6 +183,26 @@ function computeOpenSections(registro) {
     momentos: hasMomentos(registro),
     diario: hasDiario(registro)
   };
+}
+
+function BadgePolar() {
+  return <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">Polar</span>;
+}
+
+function BotonPolar({ onClick, cargando, mensaje }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={cargando}
+        className="text-xs text-blue-600 border border-blue-200 rounded-full px-3 py-1 disabled:opacity-50"
+      >
+        {cargando ? 'Trayendo…' : 'Traer de Polar'}
+      </button>
+      {mensaje && <span className="text-xs text-gray-500">{mensaje}</span>}
+    </div>
+  );
 }
 
 function Field({ label, children }) {
@@ -338,10 +370,30 @@ export default function RegistroDia() {
   const [uvCargando, setUvCargando] = useState({});
   const [uvError, setUvError] = useState({});
   const [perfil, setPerfil] = useState(null);
+  const [polarSincronizando, setPolarSincronizando] = useState({});
+  const [polarMensaje, setPolarMensaje] = useState({});
 
   useEffect(() => {
     api.getPerfil().then(setPerfil).catch(() => {});
   }, []);
+
+  async function sincronizarConPolar(tipo, campo) {
+    setPolarSincronizando((prev) => ({ ...prev, [tipo]: true }));
+    setPolarMensaje((prev) => ({ ...prev, [tipo]: '' }));
+    try {
+      const resultado = await api.sincronizarPolar(tipo, fecha);
+      const actualizado = await api.getRegistro(fecha).catch(() => null);
+      if (actualizado && actualizado[campo] !== undefined) {
+        setRegistro((prev) => ({ ...prev, [campo]: actualizado[campo] }));
+      }
+      setPolarMensaje((prev) => ({ ...prev, [tipo]: resultado.mensaje || 'Actualizado desde Polar' }));
+    } catch (err) {
+      setPolarMensaje((prev) => ({ ...prev, [tipo]: err.message }));
+    } finally {
+      setPolarSincronizando((prev) => ({ ...prev, [tipo]: false }));
+      setTimeout(() => setPolarMensaje((prev) => ({ ...prev, [tipo]: '' })), 5000);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -587,6 +639,21 @@ export default function RegistroDia() {
       </Section>
 
       <Section id="sueno" title="Sueño" open={!!openSections.sueno} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSueno(registro)}>
+        <BotonPolar
+          onClick={() => sincronizarConPolar('sueno', 'sueno')}
+          cargando={!!polarSincronizando.sueno}
+          mensaje={polarMensaje.sueno}
+        />
+        {registro.sueno.fuente === 'polar' && (
+          <div className="flex items-center justify-between bg-blue-50 rounded-xl p-2 text-xs text-gray-600">
+            <div className="space-x-3">
+              {!esVacio(registro.sueno.faseProfundoMin) && <span>Sueño profundo: {registro.sueno.faseProfundoMin} min</span>}
+              {!esVacio(registro.sueno.faseREMMin) && <span>REM: {registro.sueno.faseREMMin} min</span>}
+              {!esVacio(registro.sueno.puntuacion) && <span>Puntuación Polar: {registro.sueno.puntuacion}</span>}
+            </div>
+            <BadgePolar />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Horas dormidas">
             <TextInput type="number" step="0.5" value={registro.sueno.horas} onChange={(e) => update('sueno.horas', e.target.value)} />
@@ -611,6 +678,29 @@ export default function RegistroDia() {
           value={registro.sueno.sensacionAlDespertar}
           onChange={(e) => update('sueno.sensacionAlDespertar', e.target.value)}
         />
+      </Section>
+
+      <Section id="recuperacion" title="Recuperación nocturna" open={!!openSections.recuperacion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasRecuperacion(registro)}>
+        <BotonPolar
+          onClick={() => sincronizarConPolar('recuperacion', 'recuperacion')}
+          cargando={!!polarSincronizando.recuperacion}
+          mensaje={polarMensaje.recuperacion}
+        />
+        {hasRecuperacion(registro) || !esVacio(registro.sueno.puntuacion) ? (
+          <div className="flex items-center justify-between bg-blue-50 rounded-xl p-3">
+            <div className="text-sm text-gray-700 space-y-0.5">
+              {!esVacio(registro.sueno.puntuacion) && <p>Sleep Score: {registro.sueno.puntuacion} / 100</p>}
+              {!esVacio(registro.recuperacion.ansCharge) && <p>ANS Charge: {registro.recuperacion.ansCharge}</p>}
+              {!esVacio(registro.recuperacion.hrvMs) && <p>HRV: {registro.recuperacion.hrvMs} ms</p>}
+              {!esVacio(registro.recuperacion.frecuenciaRespiratoria) && (
+                <p>Frecuencia respiratoria: {registro.recuperacion.frecuenciaRespiratoria} rpm</p>
+              )}
+            </div>
+            <BadgePolar />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Todavía no hay datos de recuperación traídos de Polar para este día.</p>
+        )}
       </Section>
 
       <Section id="peso" title="Peso" open={!!openSections.peso} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasPeso(registro)}>
@@ -698,9 +788,15 @@ export default function RegistroDia() {
       </Section>
 
       <Section id="ejercicio" title="Ejercicio" open={!!openSections.ejercicio} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasEjercicio(registro)}>
+        <BotonPolar
+          onClick={() => sincronizarConPolar('ejercicios', 'ejercicio')}
+          cargando={!!polarSincronizando.ejercicios}
+          mensaje={polarMensaje.ejercicios}
+        />
         {registro.ejercicio.map((ej, i) => (
           <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              {ej.fuente === 'polar' ? <BadgePolar /> : <span />}
               <button type="button" onClick={() => removeItem('ejercicio', i)} className="text-gray-400 text-sm">Quitar</button>
             </div>
             <Field label="Tipo">
@@ -711,6 +807,9 @@ export default function RegistroDia() {
                   </ToggleChip>
                 ))}
               </div>
+              {ej.fuente === 'polar' && ej.deportePolar && (
+                <p className="text-xs text-gray-400 mt-1">Deporte según Polar: {ej.deportePolar}</p>
+              )}
             </Field>
             <TextInput type="number" placeholder="Minutos" value={ej.duracion} onChange={(e) => updateItem('ejercicio', i, { duracion: e.target.value })} />
             <div className="flex gap-2">
@@ -720,12 +819,40 @@ export default function RegistroDia() {
                 </ToggleChip>
               ))}
             </div>
+            {ej.fuente === 'polar' && (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-500 bg-blue-50 rounded-lg p-2">
+                {ej.calorias != null && <span>Calorías: {ej.calorias}</span>}
+                {ej.distanciaKm != null && <span>Distancia: {ej.distanciaKm} km</span>}
+                {ej.fcMedia != null && <span>FC media: {ej.fcMedia}</span>}
+                {ej.fcMaxima != null && <span>FC máxima: {ej.fcMaxima}</span>}
+              </div>
+            )}
             <TextInput placeholder="Molestias (opcional)" value={ej.molestias} onChange={(e) => updateItem('ejercicio', i, { molestias: e.target.value })} />
           </div>
         ))}
-        <button type="button" onClick={() => addItem('ejercicio', { tipo: null, duracion: '', intensidad: 'moderada', sensaciones: '', molestias: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
+        <button type="button" onClick={() => addItem('ejercicio', { tipo: null, duracion: '', intensidad: 'moderada', sensaciones: '', molestias: '', fuente: 'manual' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
           + Añadir ejercicio
         </button>
+      </Section>
+
+      <Section id="actividad" title="Actividad diaria" open={!!openSections.actividad} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasActividad(registro)}>
+        <BotonPolar
+          onClick={() => sincronizarConPolar('actividad', 'actividad')}
+          cargando={!!polarSincronizando.actividad}
+          mensaje={polarMensaje.actividad}
+        />
+        {hasActividad(registro) ? (
+          <div className="flex items-center justify-between bg-blue-50 rounded-xl p-3">
+            <div className="text-sm text-gray-700 space-y-0.5">
+              {!esVacio(registro.actividad.pasos) && <p>👣 {registro.actividad.pasos} pasos</p>}
+              {!esVacio(registro.actividad.caloriasActivas) && <p>🔥 {registro.actividad.caloriasActivas} kcal activas</p>}
+              {!esVacio(registro.actividad.porcentajeActividad) && <p>📊 {registro.actividad.porcentajeActividad}% de actividad diaria</p>}
+            </div>
+            <BadgePolar />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Todavía no hay actividad traída de Polar para este día.</p>
+        )}
       </Section>
 
       <Section id="sol" title="Exposición solar" open={!!openSections.sol} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSol(registro)}>

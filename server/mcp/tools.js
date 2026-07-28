@@ -93,7 +93,10 @@ export function registerTools(server) {
     {
       title: 'Consultar registro de un día',
       description:
-        'Devuelve todos los datos registrados para una fecha concreta: síntomas, estado emocional, sueño, peso, nutrición, tránsito intestinal, ejercicio, exposición solar, medicación, citas médicas y diario personal.',
+        'Devuelve todos los datos registrados para una fecha concreta: síntomas, estado emocional, sueño, peso, nutrición, tránsito intestinal, ejercicio, actividad diaria, recuperación nocturna, exposición solar, medicación, citas médicas y diario personal. ' +
+        'Si "sueno" o "ejercicio" tienen fuente:"polar", vienen importados automáticamente del reloj Polar (sueno incluye faseProfundoMin, faseREMMin y puntuacion; ejercicio incluye calorias, distanciaKm, fcMedia y fcMaxima). ' +
+        '"actividad" son los pasos, calorías activas y el % de actividad diaria del día (pasos, caloriasActivas, porcentajeActividad), traídos de Polar. ' +
+        '"recuperacion" es el Nightly Recharge de Polar de esa noche: ansCharge (carga del sistema nervioso autónomo, negativo=mejor recuperación), hrvMs (variabilidad de la frecuencia cardíaca) y frecuenciaRespiratoria (respiraciones por minuto).',
       inputSchema: { fecha: z.string().describe('Fecha en formato YYYY-MM-DD') }
     },
     async ({ fecha }) => {
@@ -111,7 +114,10 @@ export function registerTools(server) {
     'consultar_rango',
     {
       title: 'Consultar varios días',
-      description: 'Devuelve los registros guardados entre dos fechas (ambas incluidas), ordenados cronológicamente. Útil para ver la evolución de una semana o un mes.',
+      description:
+        'Devuelve los registros completos guardados entre dos fechas (ambas incluidas), ordenados cronológicamente. Útil para ver la evolución de una semana o un mes. ' +
+        'Incluye síntomas, sueño (con datos de Polar si los hay: fases, puntuación), actividad diaria (pasos, calorías), recuperación nocturna (ansCharge, hrvMs, frecuenciaRespiratoria) y ejercicio (con calorías/distancia/FC si vienen de Polar). ' +
+        'Si solo te interesan pasos, sueño, recuperación o ejercicio (no síntomas/diario/etc), usa mejor consultar_actividad_fisica, que da una respuesta más compacta.',
       inputSchema: {
         desde: z.string().describe('Fecha inicial en formato YYYY-MM-DD'),
         hasta: z.string().describe('Fecha final en formato YYYY-MM-DD')
@@ -128,6 +134,50 @@ export function registerTools(server) {
         fecha: { $gte: fDesde, $lte: fHasta }
       }).sort({ fecha: 1 });
       return ok(registros.map(limpiar));
+    }
+  );
+
+  server.registerTool(
+    'consultar_actividad_fisica',
+    {
+      title: 'Consultar pasos, sueño, recuperación y ejercicio',
+      description:
+        'Devuelve, para cada día de un rango, solo los datos físicos: pasos, calorías activas y % de actividad diaria (actividad: pasos, caloriasActivas, porcentajeActividad), horas y calidad de sueño con fases si vienen de Polar (sueno), recuperación nocturna de Polar (recuperacion: ansCharge, hrvMs, frecuenciaRespiratoria) y la lista de ejercicios del día. ' +
+        'Es la herramienta más directa para preguntas de tipo "cuántos pasos di esta semana", "cómo ha sido mi sueño/recuperación este mes" o "qué ejercicio he hecho". No incluye síntomas, diario ni otros datos: para eso usa consultar_dia o consultar_rango.',
+      inputSchema: {
+        desde: z.string().describe('Fecha inicial en formato YYYY-MM-DD'),
+        hasta: z.string().describe('Fecha final en formato YYYY-MM-DD')
+      }
+    },
+    async ({ desde, hasta }) => {
+      const fDesde = parseFecha(desde);
+      const fHasta = parseFecha(hasta);
+      if (!fDesde || !fHasta) return fail('Fechas inválidas, usa el formato YYYY-MM-DD');
+
+      const usuario = await getUsuario();
+      const registros = await Registro.find({
+        usuarioId: usuario._id,
+        fecha: { $gte: fDesde, $lte: fHasta }
+      }).sort({ fecha: 1 });
+
+      const resumen = registros.map((r) => ({
+        fecha: fechaKey(r.fecha),
+        actividad: r.actividad ? objSubdoc(r.actividad) : null,
+        sueno: r.sueno
+          ? {
+              horas: r.sueno.horas ?? null,
+              calidad: r.sueno.calidad ?? null,
+              faseProfundoMin: r.sueno.faseProfundoMin ?? null,
+              faseREMMin: r.sueno.faseREMMin ?? null,
+              puntuacion: r.sueno.puntuacion ?? null,
+              fuente: r.sueno.fuente ?? null
+            }
+          : null,
+        recuperacion: r.recuperacion ? objSubdoc(r.recuperacion) : null,
+        ejercicio: (r.ejercicio || []).map((e) => objSubdoc(e))
+      }));
+
+      return ok(resumen);
     }
   );
 
