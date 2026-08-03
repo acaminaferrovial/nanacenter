@@ -5,6 +5,7 @@ import {
   Line,
   BarChart,
   Bar,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -294,6 +295,18 @@ export default function Evolucion() {
     [registrosFiltrados]
   );
 
+  const datosActividad = useMemo(
+    () =>
+      registrosFiltrados
+        .filter((r) => r.actividad && (r.actividad.pasos != null || r.actividad.porcentajeActividad != null))
+        .map((r) => ({
+          fecha: formatFechaCorta(fechaKey(r.fecha)),
+          Pasos: r.actividad.pasos ?? null,
+          '% actividad': r.actividad.porcentajeActividad ?? null
+        })),
+    [registrosFiltrados]
+  );
+
   const datosTransito = useMemo(
     () =>
       registrosFiltrados
@@ -435,6 +448,25 @@ export default function Evolucion() {
               <Tooltip />
               <Line type="monotone" dataKey="Vitamina D (UI)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <SinDatos />
+        )}
+      </Card>
+
+      <Card title="Actividad diaria">
+        {datosActividad.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={datosActividad}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
+              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="pasos" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="porcentaje" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar yAxisId="pasos" dataKey="Pasos" fill="#93c5fd" radius={[4, 4, 0, 0]} />
+              <Line yAxisId="porcentaje" type="monotone" dataKey="% actividad" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+            </ComposedChart>
           </ResponsiveContainer>
         ) : (
           <SinDatos />
