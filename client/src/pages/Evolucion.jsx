@@ -254,7 +254,11 @@ export default function Evolucion() {
           Ansiedad: r.emocional.ansiedad,
           Estrés: r.emocional.estres,
           Irritabilidad: r.emocional.irritabilidad,
-          Energía: r.emocional.energia
+          Energía: r.emocional.energia,
+          Tranquilidad: r.emocional.tranquilidad,
+          Tristeza: r.emocional.tristeza,
+          Alegría: r.emocional.alegria,
+          Rumiación: r.emocional.rumiacion
         })),
     [registrosFiltrados]
   );
@@ -385,7 +389,7 @@ export default function Evolucion() {
 
       <Card title="Estado emocional">
         {datosEmocional.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={260}>
             <LineChart data={datosEmocional}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
               <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
@@ -397,6 +401,10 @@ export default function Evolucion() {
               <Line type="monotone" dataKey="Estrés" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls />
               <Line type="monotone" dataKey="Irritabilidad" stroke="#0891b2" strokeWidth={2} dot={false} connectNulls />
               <Line type="monotone" dataKey="Energía" stroke="#16a34a" strokeWidth={2} dot={false} connectNulls />
+              <Line type="monotone" dataKey="Tranquilidad" stroke="#0ea5e9" strokeWidth={2} dot={false} connectNulls />
+              <Line type="monotone" dataKey="Tristeza" stroke="#64748b" strokeWidth={2} dot={false} connectNulls />
+              <Line type="monotone" dataKey="Alegría" stroke="#eab308" strokeWidth={2} dot={false} connectNulls />
+              <Line type="monotone" dataKey="Rumiación" stroke="#be185d" strokeWidth={2} dot={false} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         ) : (

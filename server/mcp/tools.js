@@ -38,6 +38,10 @@ const emocionalSchema = z
     estres: escala010.optional(),
     irritabilidad: escala010.optional(),
     energia: escala010.optional(),
+    tranquilidad: escala010.optional(),
+    tristeza: escala010.optional(),
+    alegria: escala010.optional(),
+    rumiacion: escala010.optional().describe('Cuánto le dan vueltas a los pensamientos, de 0 a 10'),
     nota: z.string().optional()
   })
   .optional()
@@ -78,14 +82,6 @@ const momentoDiaSchema = z
     energia: escala010.optional()
   })
   .optional();
-
-const miccionSchema = z
-  .object({
-    frecuencia: z.number().optional().describe('Veces al día (opcional)'),
-    nota: z.string().optional().describe('Otros cambios notados al orinar (opcional)')
-  })
-  .optional()
-  .describe('Datos de micción, opcionales.');
 
 export function registerTools(server) {
   server.registerTool(
@@ -254,13 +250,12 @@ export function registerTools(server) {
         sueno: suenoSchema,
         nutricion: nutricionSchema,
         transito: transitoSchema,
-        miccion: miccionSchema,
         momentoManana: momentoDiaSchema,
         momentoTarde: momentoDiaSchema,
         momentoNoche: momentoDiaSchema
       }
     },
-    async ({ fecha, peso, diario, resumenDia, emocional, sueno, nutricion, transito, miccion, momentoManana, momentoTarde, momentoNoche }) => {
+    async ({ fecha, peso, diario, resumenDia, emocional, sueno, nutricion, transito, momentoManana, momentoTarde, momentoNoche }) => {
       const f = parseFecha(fecha);
       if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
 
@@ -275,7 +270,6 @@ export function registerTools(server) {
       if (sueno) set.sueno = { ...objSubdoc(existente?.sueno), ...sueno };
       if (nutricion) set.nutricion = { ...objSubdoc(existente?.nutricion), ...nutricion };
       if (transito) set.transito = { ...objSubdoc(existente?.transito), ...transito };
-      if (miccion) set.miccion = { ...objSubdoc(existente?.miccion), ...miccion };
       if (momentoManana || momentoTarde || momentoNoche) {
         const momentosExistentes = objSubdoc(existente?.momentos);
         set.momentos = {
@@ -342,7 +336,7 @@ export function registerTools(server) {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         hora: z.string().optional().describe('Hora aproximada, p.ej. "09:30"'),
         tipoBristol: z.number().min(1).max(7).describe('Tipo según la escala de Bristol, del 1 (muy duro) al 7 (líquido)'),
-        cantidad: z.enum(['poca', 'normal', 'abundante']).optional(),
+        cantidad: z.number().min(1).max(10).optional().describe('Cantidad, de 1 (poca) a 10 (abundante)'),
         color: z.enum(['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado']).optional(),
         evacuacionCompleta: z.boolean().optional().describe('true si la evacuación fue completa, false si fue incompleta'),
         dolor: z.boolean().optional(),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { addDays, formatFechaLarga, todayStr } from '../utils/date.js';
@@ -11,7 +11,6 @@ export const SINTOMA_TIPOS = [
 ];
 
 const EJERCICIO_TIPOS = ['Pilates', 'Yoga', 'Movilidad', 'Estiramientos', 'Caminar', 'Fuerza', 'Aeróbic', 'Cardio'];
-const CANTIDAD_POPO = ['poca', 'normal', 'abundante'];
 const COLOR_POPO = ['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado'];
 const INFUSION_TIPOS = ['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien'];
 const UBICACIONES = ['Casa'];
@@ -29,7 +28,7 @@ const MOMENTO_KEY_MAP = { 'mañana': 'manana', tarde: 'tarde', noche: 'noche' };
 
 const SECTION_IDS = [
   'sintomas', 'emocional', 'sueno', 'recuperacion', 'peso', 'nutricion', 'transito', 'ejercicio',
-  'actividad', 'sol', 'medicacion', 'infusiones', 'miccion', 'momentos', 'diario'
+  'actividad', 'sol', 'medicacion', 'infusiones', 'momentos', 'diario'
 ];
 
 const SECTION_FIELDS = {
@@ -45,7 +44,6 @@ const SECTION_FIELDS = {
   sol: ['exposicionSolar'],
   medicacion: ['medicacion'],
   infusiones: ['infusiones'],
-  miccion: ['miccion'],
   momentos: ['momentos'],
   diario: ['diario', 'resumenDia']
 };
@@ -53,7 +51,18 @@ const SECTION_FIELDS = {
 function emptyRegistro() {
   return {
     sintomas: [],
-    emocional: { animo: null, ansiedad: null, estres: null, irritabilidad: null, energia: null, nota: '' },
+    emocional: {
+      animo: null,
+      ansiedad: null,
+      estres: null,
+      irritabilidad: null,
+      energia: null,
+      tranquilidad: null,
+      tristeza: null,
+      alegria: null,
+      rumiacion: null,
+      nota: ''
+    },
     sueno: { horas: '', calidad: null, despertares: '', dificultadConciliar: false, sensacionAlDespertar: '', nota: '' },
     peso: '',
     nutricion: { comidas: '', hambre: null },
@@ -64,7 +73,6 @@ function emptyRegistro() {
     exposicionSolar: [],
     medicacion: [],
     infusiones: [],
-    miccion: { frecuencia: '', nota: '' },
     momentos: {
       manana: { nota: '', energia: null },
       tarde: { nota: '', energia: null },
@@ -120,7 +128,18 @@ function hasSintomas(r) {
 }
 function hasEmocional(r) {
   const e = r.emocional;
-  return e.animo !== null || e.ansiedad !== null || e.estres !== null || e.irritabilidad !== null || e.energia !== null || e.nota !== '';
+  return (
+    !esVacio(e.animo) ||
+    !esVacio(e.ansiedad) ||
+    !esVacio(e.estres) ||
+    !esVacio(e.irritabilidad) ||
+    !esVacio(e.energia) ||
+    !esVacio(e.tranquilidad) ||
+    !esVacio(e.tristeza) ||
+    !esVacio(e.alegria) ||
+    !esVacio(e.rumiacion) ||
+    e.nota !== ''
+  );
 }
 function hasSueno(r) {
   const s = r.sueno;
@@ -155,34 +174,11 @@ function hasMedicacion(r) {
 function hasInfusiones(r) {
   return r.infusiones.length > 0;
 }
-function hasMiccion(r) {
-  return !esVacio(r.miccion.frecuencia) || !esVacio(r.miccion.nota);
-}
 function hasMomentos(r) {
   return Object.values(r.momentos).some((m) => m && (!esVacio(m.energia) || !esVacio(m.nota)));
 }
 function hasDiario(r) {
   return !esVacio(r.diario) || !esVacio(r.resumenDia);
-}
-
-function computeOpenSections(registro) {
-  return {
-    sintomas: hasSintomas(registro),
-    emocional: hasEmocional(registro),
-    sueno: hasSueno(registro),
-    peso: hasPeso(registro),
-    nutricion: hasNutricion(registro),
-    transito: hasTransito(registro),
-    ejercicio: hasEjercicio(registro),
-    actividad: hasActividad(registro),
-    recuperacion: hasRecuperacion(registro),
-    sol: hasSol(registro),
-    medicacion: hasMedicacion(registro),
-    infusiones: hasInfusiones(registro),
-    miccion: hasMiccion(registro),
-    momentos: hasMomentos(registro),
-    diario: hasDiario(registro)
-  };
 }
 
 function BadgePolar() {
@@ -214,10 +210,10 @@ function Field({ label, children }) {
   );
 }
 
-function ScalePicker({ value, onChange, max = 10 }) {
+function ScalePicker({ value, onChange, max = 10, min = 0 }) {
   return (
     <div className="flex gap-1 flex-wrap">
-      {Array.from({ length: max + 1 }, (_, i) => i).map((n) => (
+      {Array.from({ length: max - min + 1 }, (_, i) => i + min).map((n) => (
         <button
           key={n}
           type="button"
@@ -372,10 +368,23 @@ export default function RegistroDia() {
   const [perfil, setPerfil] = useState(null);
   const [polarSincronizando, setPolarSincronizando] = useState({});
   const [polarMensaje, setPolarMensaje] = useState({});
+  const [focoPendiente, setFocoPendiente] = useState(null);
+  const focoRef = useRef(null);
 
   useEffect(() => {
     api.getPerfil().then(setPerfil).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (focoPendiente && focoRef.current) {
+      focoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      focoRef.current.focus({ preventScroll: true });
+    }
+  }, [focoPendiente]);
+
+  function refUltimoAgregado(lista, arr, i) {
+    return i === arr.length - 1 && focoPendiente?.lista === lista ? focoRef : null;
+  }
 
   async function sincronizarConPolar(tipo, campo) {
     setPolarSincronizando((prev) => ({ ...prev, [tipo]: true }));
@@ -406,7 +415,7 @@ export default function RegistroDia() {
         const { _id, usuarioId, fecha: _fecha, createdAt, updatedAt, __v, ...resto } = data;
         const merged = { ...emptyRegistro(), ...resto };
         setRegistro(merged);
-        setOpenSections(computeOpenSections(merged));
+        setOpenSections({});
       })
       .catch(() => {
         if (cancelled) return;
@@ -438,6 +447,7 @@ export default function RegistroDia() {
 
   function addItem(listKey, item) {
     setRegistro((prev) => ({ ...prev, [listKey]: [...prev[listKey], item] }));
+    setFocoPendiente({ lista: listKey, ts: Date.now() });
   }
 
   function updateItem(listKey, index, patch) {
@@ -462,6 +472,7 @@ export default function RegistroDia() {
         ]
       }
     }));
+    setFocoPendiente({ lista: 'deposiciones', ts: Date.now() });
   }
 
   function updateDeposicion(index, patch) {
@@ -575,7 +586,7 @@ export default function RegistroDia() {
         </div>
         <div className="space-y-3 mt-2">
           {registro.sintomas.map((s, i) => (
-            <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+            <div key={i} ref={refUltimoAgregado('sintomas', registro.sintomas, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{s.tipo}</span>
                 <button type="button" onClick={() => removeItem('sintomas', i)} className="text-gray-400 text-sm">
@@ -634,6 +645,18 @@ export default function RegistroDia() {
         </Field>
         <Field label="Energía">
           <ScalePicker value={registro.emocional.energia} onChange={(v) => update('emocional.energia', v)} />
+        </Field>
+        <Field label="Tranquilidad">
+          <ScalePicker value={registro.emocional.tranquilidad} onChange={(v) => update('emocional.tranquilidad', v)} />
+        </Field>
+        <Field label="Tristeza">
+          <ScalePicker value={registro.emocional.tristeza} onChange={(v) => update('emocional.tristeza', v)} />
+        </Field>
+        <Field label="Alegría">
+          <ScalePicker value={registro.emocional.alegria} onChange={(v) => update('emocional.alegria', v)} />
+        </Field>
+        <Field label="Rumiación (dar vueltas a los pensamientos)">
+          <ScalePicker value={registro.emocional.rumiacion} onChange={(v) => update('emocional.rumiacion', v)} />
         </Field>
         <TextInput placeholder="Reflexión (opcional)" value={registro.emocional.nota} onChange={(e) => update('emocional.nota', e.target.value)} />
       </Section>
@@ -719,7 +742,7 @@ export default function RegistroDia() {
       <Section id="transito" title="Tránsito intestinal" open={!!openSections.transito} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasTransito(registro)}>
         <div className="space-y-3">
           {registro.transito.deposiciones.map((dep, i) => (
-            <div key={i} className="border border-amber-100 rounded-xl p-3 space-y-2">
+            <div key={i} ref={refUltimoAgregado('deposiciones', registro.transito.deposiciones, i)} tabIndex={-1} className="border border-amber-100 rounded-xl p-3 space-y-2 outline-none">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm">Deposición {i + 1}</span>
                 <button type="button" onClick={() => removeDeposicion(i)} className="text-gray-400 text-sm">
@@ -732,14 +755,8 @@ export default function RegistroDia() {
               <Field label="Escala de Bristol">
                 <BristolPicker value={dep.tipoBristol} onChange={(v) => updateDeposicion(i, { tipoBristol: v })} />
               </Field>
-              <Field label="Cantidad">
-                <div className="flex gap-2">
-                  {CANTIDAD_POPO.map((c) => (
-                    <ToggleChip key={c} active={dep.cantidad === c} onClick={() => updateDeposicion(i, { cantidad: dep.cantidad === c ? null : c })}>
-                      {c}
-                    </ToggleChip>
-                  ))}
-                </div>
+              <Field label="Cantidad (1 poca - 10 abundante)">
+                <ScalePicker value={dep.cantidad} onChange={(v) => updateDeposicion(i, { cantidad: v })} max={10} min={1} />
               </Field>
               <Field label="Color">
                 <div className="flex flex-wrap gap-2">
@@ -794,7 +811,7 @@ export default function RegistroDia() {
           mensaje={polarMensaje.ejercicios}
         />
         {registro.ejercicio.map((ej, i) => (
-          <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+          <div key={i} ref={refUltimoAgregado('ejercicio', registro.ejercicio, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
             <div className="flex justify-between items-center">
               {ej.fuente === 'polar' ? <BadgePolar /> : <span />}
               <button type="button" onClick={() => removeItem('ejercicio', i)} className="text-gray-400 text-sm">Quitar</button>
@@ -877,7 +894,7 @@ export default function RegistroDia() {
           );
         })()}
         {registro.exposicionSolar.map((s, i) => (
-          <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+          <div key={i} ref={refUltimoAgregado('exposicionSolar', registro.exposicionSolar, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
             <div className="flex justify-end">
               <button type="button" onClick={() => removeItem('exposicionSolar', i)} className="text-gray-400 text-sm">Quitar</button>
             </div>
@@ -1003,7 +1020,7 @@ export default function RegistroDia() {
 
       <Section id="medicacion" title="Medicación y suplementos" open={!!openSections.medicacion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMedicacion(registro)}>
         {registro.medicacion.map((m, i) => (
-          <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+          <div key={i} ref={refUltimoAgregado('medicacion', registro.medicacion, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
             <div className="flex justify-end">
               <button type="button" onClick={() => removeItem('medicacion', i)} className="text-gray-400 text-sm">Quitar</button>
             </div>
@@ -1022,7 +1039,7 @@ export default function RegistroDia() {
 
       <Section id="infusiones" title="Infusiones" open={!!openSections.infusiones} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasInfusiones(registro)}>
         {registro.infusiones.map((inf, i) => (
-          <div key={i} className="border border-rose-100 rounded-xl p-3 space-y-2">
+          <div key={i} ref={refUltimoAgregado('infusiones', registro.infusiones, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
             <div className="flex justify-end">
               <button type="button" onClick={() => removeItem('infusiones', i)} className="text-gray-400 text-sm">Quitar</button>
             </div>
@@ -1046,13 +1063,6 @@ export default function RegistroDia() {
         <button type="button" onClick={() => addItem('infusiones', { tipos: [], hora: '', efecto: '' })} className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1">
           + Añadir infusión
         </button>
-      </Section>
-
-      <Section id="miccion" title="Micción" open={!!openSections.miccion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMiccion(registro)}>
-        <Field label="Frecuencia (veces al día, opcional)">
-          <TextInput type="number" value={registro.miccion.frecuencia} onChange={(e) => update('miccion.frecuencia', e.target.value)} />
-        </Field>
-        <TextInput placeholder="Otros cambios (opcional)" value={registro.miccion.nota} onChange={(e) => update('miccion.nota', e.target.value)} />
       </Section>
 
       <Section id="momentos" title="Mañana / Tarde / Noche" open={!!openSections.momentos} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMomentos(registro)}>

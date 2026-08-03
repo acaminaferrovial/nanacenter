@@ -92,7 +92,7 @@ const deposicionSchema = new mongoose.Schema(
   {
     hora: String,
     tipoBristol: { type: Number, min: 1, max: 7 },
-    cantidad: { type: String, enum: ['poca', 'normal', 'abundante'] },
+    cantidad: { type: Number, min: 1, max: 10 },
     color: {
       type: String,
       enum: ['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado']
@@ -126,6 +126,10 @@ const registroSchema = new mongoose.Schema(
       estres: { type: Number, min: 0, max: 10 },
       irritabilidad: { type: Number, min: 0, max: 10 },
       energia: { type: Number, min: 0, max: 10 },
+      tranquilidad: { type: Number, min: 0, max: 10 },
+      tristeza: { type: Number, min: 0, max: 10 },
+      alegria: { type: Number, min: 0, max: 10 },
+      rumiacion: { type: Number, min: 0, max: 10 },
       nota: String
     },
     sueno: {
@@ -156,10 +160,6 @@ const registroSchema = new mongoose.Schema(
     exposicionSolar: [exposicionSolarSchema],
     medicacion: [medicacionSchema],
     infusiones: [infusionSchema],
-    miccion: {
-      frecuencia: Number,
-      nota: String
-    },
     actividad: {
       pasos: Number,
       caloriasActivas: Number,
