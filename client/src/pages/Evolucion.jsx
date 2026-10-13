@@ -78,7 +78,9 @@ function CalendarioSintomas({ registros }) {
         .filter((s) => s.tipo === sintoma)
         .forEach((s) => {
           const key = fechaKey(r.fecha);
-          const intensidad = Math.max(0, ...(s.momento || []).map((m) => m.intensidad ?? 0));
+          const intensidad = s.intensidad != null
+            ? s.intensidad
+            : Math.max(0, ...(s.momento || []).map((m) => m.intensidad ?? 0));
           if (map[key] === undefined || intensidad > map[key]) map[key] = intensidad;
         });
     });
@@ -446,7 +448,7 @@ export default function Evolucion() {
         )}
       </Card>
 
-      <Card title="Vitamina D por el sol">
+      <Card title="Vitamina D (Sol y Suplemento)">
         {datosVitaminaD.length > 0 ? (
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={datosVitaminaD}>

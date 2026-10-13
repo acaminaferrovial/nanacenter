@@ -18,7 +18,16 @@ function estadoDia(registro) {
   if (registro.emocional?.animo != null) puntos.push(registro.emocional.animo);
   if (registro.sueno?.calidad != null) puntos.push(registro.sueno.calidad);
   if (registro.sintomas?.length) {
-    const intensidades = registro.sintomas.flatMap((s) => (s.momento || []).map((m) => m.intensidad ?? 0));
+    const intensidades = registro.sintomas
+      .map((s) =>
+        s.intensidad != null
+          ? s.intensidad
+          : s.momento?.length
+          ? Math.max(...s.momento.map((m) => m.intensidad ?? 0))
+          : null
+      )
+      .filter((v) => v != null);
+
     if (intensidades.length > 0) {
       const media = intensidades.reduce((a, b) => a + b, 0) / intensidades.length;
       puntos.push(10 - media);

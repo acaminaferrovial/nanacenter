@@ -7,12 +7,13 @@ import { calcularExposicionUV, IU_MAXIMO_SESION } from '../utils/vitaminaD.js';
 export const SINTOMA_TIPOS = [
   'Náuseas', 'Vómitos', 'Dolor lumbar', 'Cansancio', 'Hinchazón', 'Dolor de cabeza',
   'Mareo', 'Acidez', 'Calambres', 'Dolor pélvico', 'Insomnio',
-  'Dolor de tetas', 'Gases', 'Cólicos', 'Mal aliento'
+  'Dolor de tetas', 'Gases', 'Cólicos', 'Mal aliento',
+  'Distensión', 'Vejiga inquieta', 'Dolor de hueso sacro', 'Dolor de cadera'
 ];
 
 const EJERCICIO_TIPOS = ['Pilates', 'Yoga', 'Movilidad', 'Estiramientos', 'Caminar', 'Fuerza', 'Aeróbic', 'Cardio'];
 const COLOR_POPO = ['Negro', 'Marrón', 'Marrón ennegrecido', 'Marrón amarillento', 'Marrón anaranjado'];
-const INFUSION_TIPOS = ['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien'];
+const INFUSION_TIPOS = ['Jengibre', 'Tomillo', 'Hinojo', 'Tila', 'Mate', 'Manzanilla'];
 const UBICACIONES = ['Casa'];
 const PARTES_CUERPO_OPCIONES = [
   { label: 'Cara y manos', valor: 0.1 },
@@ -579,54 +580,41 @@ export default function RegistroDia() {
       <Section id="sintomas" title="Síntomas" open={!!openSections.sintomas} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSintomas(registro)}>
         <div className="flex flex-wrap gap-2">
           {SINTOMA_TIPOS.map((tipo) => (
-            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, momento: [], duracion: '', nota: '' })}>
+            <ToggleChip key={tipo} onClick={() => addItem('sintomas', { tipo, intensidad: 5, momento: [], duracion: '', nota: '' })}>
               + {tipo}
             </ToggleChip>
           ))}
         </div>
         <div className="space-y-3 mt-2">
-          {registro.sintomas.map((s, i) => (
-            <div key={i} ref={refUltimoAgregado('sintomas', registro.sintomas, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{s.tipo}</span>
-                <button type="button" onClick={() => removeItem('sintomas', i)} className="text-gray-400 text-sm">
-                  Quitar
-                </button>
+          {registro.sintomas.map((s, i) => {
+            const intensidadActual = s.intensidad != null
+              ? s.intensidad
+              : (s.momento?.length ? Math.max(...s.momento.map((m) => m.intensidad ?? 0)) : null);
+
+            return (
+              <div key={i} ref={refUltimoAgregado('sintomas', registro.sintomas, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-rose-700">{s.tipo}</span>
+                  <button type="button" onClick={() => removeItem('sintomas', i)} className="text-gray-400 text-sm hover:text-red-500">
+                    Quitar
+                  </button>
+                </div>
+                <Field label="Intensidad (0 leve - 10 muy fuerte)">
+                  <ScalePicker
+                    value={intensidadActual}
+                    onChange={(v) => updateItem('sintomas', i, { intensidad: v })}
+                  />
+                </Field>
+                {s.momento && s.momento.length > 0 && (
+                  <div className="text-xs text-gray-500 bg-rose-50/60 rounded-lg p-2 space-y-0.5">
+                    <span className="font-medium text-gray-600">Histórico anterior: </span>
+                    {s.momento.map((m) => `${m.momento} (${m.intensidad}/10)`).join(', ')}
+                  </div>
+                )}
+                <TextInput placeholder="Nota (opcional)" value={s.nota} onChange={(e) => updateItem('sintomas', i, { nota: e.target.value })} />
               </div>
-              <div className="space-y-2">
-                {MOMENTOS.map((m) => {
-                  const entrada = (s.momento || []).find((x) => x.momento === m);
-                  return (
-                    <div key={m} className="space-y-1">
-                      <ToggleChip
-                        active={!!entrada}
-                        onClick={() =>
-                          updateItem('sintomas', i, {
-                            momento: entrada
-                              ? s.momento.filter((x) => x.momento !== m)
-                              : [...(s.momento || []), { momento: m, intensidad: 5 }]
-                          })
-                        }
-                      >
-                        {m}
-                      </ToggleChip>
-                      {entrada && (
-                        <ScalePicker
-                          value={entrada.intensidad}
-                          onChange={(v) =>
-                            updateItem('sintomas', i, {
-                              momento: s.momento.map((x) => (x.momento === m ? { ...x, intensidad: v } : x))
-                            })
-                          }
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <TextInput placeholder="Nota (opcional)" value={s.nota} onChange={(e) => updateItem('sintomas', i, { nota: e.target.value })} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Section>
 
@@ -872,150 +860,262 @@ export default function RegistroDia() {
         )}
       </Section>
 
-      <Section id="sol" title="Exposición solar" open={!!openSections.sol} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSol(registro)}>
+      <Section id="sol" title="Vitamina D (Sol y Suplemento)" open={!!openSections.sol} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasSol(registro)}>
         {(() => {
-          const totalDia = registro.exposicionSolar.reduce((suma, e) => suma + (e.vitaminaDIU || 0), 0);
+          const totalSol = registro.exposicionSolar.filter((e) => e.tipo !== 'suplemento').reduce((suma, e) => suma + (e.vitaminaDIU || 0), 0);
+          const totalSuplemento = registro.exposicionSolar.filter((e) => e.tipo === 'suplemento').reduce((suma, e) => suma + (e.vitaminaDIU || 0), 0);
+          const totalDia = totalSol + totalSuplemento;
           const porcentaje = Math.min(100, Math.round((totalDia / IU_MAXIMO_SESION) * 100));
           return (
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-gray-600">
                 <span>Vitamina D de hoy</span>
-                <span className="font-medium text-amber-700">
+                <span className="font-semibold text-amber-700">
                   {totalDia.toLocaleString('es-ES')} / {IU_MAXIMO_SESION.toLocaleString('es-ES')} UI
                 </span>
               </div>
               <div className="w-full bg-amber-100 rounded-full h-2.5">
                 <div className="bg-amber-500 h-2.5 rounded-full transition-all" style={{ width: `${porcentaje}%` }} />
               </div>
+              {(totalSol > 0 || totalSuplemento > 0) && (
+                <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
+                  <span>☀️ Sol: {totalSol.toLocaleString('es-ES')} UI</span>
+                  <span>💊 Pastillas: {totalSuplemento.toLocaleString('es-ES')} UI</span>
+                </div>
+              )}
               {totalDia >= IU_MAXIMO_SESION && (
-                <p className="text-[11px] text-amber-700">Máximo diario alcanzado: la piel ya no produce más por hoy.</p>
+                <p className="text-[11px] text-amber-700">Objetivo diario alcanzado.</p>
               )}
             </div>
           );
         })()}
-        {registro.exposicionSolar.map((s, i) => (
-          <div key={i} ref={refUltimoAgregado('exposicionSolar', registro.exposicionSolar, i)} tabIndex={-1} className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none">
-            <div className="flex justify-end">
-              <button type="button" onClick={() => removeItem('exposicionSolar', i)} className="text-gray-400 text-sm">Quitar</button>
-            </div>
-            <div className="flex gap-2">
-              {MOMENTOS.map((m) => (
-                <ToggleChip key={m} active={s.momentoDia === m} onClick={() => updateItem('exposicionSolar', i, { momentoDia: m })}>
-                  {m}
-                </ToggleChip>
-              ))}
-            </div>
-            <Field label="Ubicación">
-              <select
-                value={s.ubicacion || UBICACIONES[0]}
-                onChange={(e) => {
-                  updateItem('exposicionSolar', i, { ubicacion: e.target.value });
-                  recalcularExposicion(i, { ubicacion: e.target.value });
-                }}
-                className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+
+        {registro.exposicionSolar.map((s, i) => {
+          if (s.tipo === 'suplemento') {
+            const pastillasActuales = s.pastillas ?? (s.vitaminaDIU ? Math.round(s.vitaminaDIU / 4000) : 1);
+            return (
+              <div
+                key={i}
+                ref={refUltimoAgregado('exposicionSolar', registro.exposicionSolar, i)}
+                tabIndex={-1}
+                className="border border-amber-200 bg-amber-50/40 rounded-xl p-3 space-y-3 outline-none"
               >
-                {UBICACIONES.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <TextInput
-                type="time"
-                value={s.horaInicio}
-                onChange={(e) => {
-                  updateItem('exposicionSolar', i, { horaInicio: e.target.value });
-                  recalcularExposicion(i, { horaInicio: e.target.value });
-                }}
-              />
-              <TextInput
-                type="number"
-                placeholder="Minutos"
-                value={s.duracion}
-                onChange={(e) => {
-                  updateItem('exposicionSolar', i, { duracion: e.target.value });
-                  recalcularExposicion(i, { duracion: e.target.value });
-                }}
-              />
-            </div>
-            <Field label="Parte del cuerpo expuesta">
-              <div className="flex flex-wrap gap-2">
-                {PARTES_CUERPO_OPCIONES.map((op) => (
-                  <ToggleChip
-                    key={op.valor}
-                    active={(s.bsaFraccion ?? BSA_POR_DEFECTO) === op.valor}
-                    onClick={() => {
-                      updateItem('exposicionSolar', i, { bsaFraccion: op.valor });
-                      recalcularExposicion(i, { bsaFraccion: op.valor });
-                    }}
-                  >
-                    {op.label}
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-amber-900 text-sm flex items-center gap-1.5">
+                    💊 Pastilla de Vitamina D
+                  </span>
+                  <button type="button" onClick={() => removeItem('exposicionSolar', i)} className="text-gray-400 text-sm hover:text-red-500">
+                    Quitar
+                  </button>
+                </div>
+
+                <div>
+                  <span className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Número de pastillas (cada pastilla aporta 4.000 UI):
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3].map((num) => (
+                      <ToggleChip
+                        key={num}
+                        active={pastillasActuales === num}
+                        onClick={() =>
+                          updateItem('exposicionSolar', i, {
+                            pastillas: num,
+                            vitaminaDIU: num * 4000
+                          })
+                        }
+                      >
+                        {num} {num === 1 ? 'pastilla' : 'pastillas'} ({(num * 4000).toLocaleString('es-ES')} UI)
+                      </ToggleChip>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="UI totales aportados">
+                    <TextInput
+                      type="number"
+                      value={s.vitaminaDIU ?? 4000}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 0;
+                        updateItem('exposicionSolar', i, {
+                          vitaminaDIU: val,
+                          pastillas: Math.round(val / 4000) || 1
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="Hora (opcional)">
+                    <TextInput
+                      type="time"
+                      value={s.horaInicio}
+                      onChange={(e) => updateItem('exposicionSolar', i, { horaInicio: e.target.value })}
+                    />
+                  </Field>
+                </div>
+
+                <TextInput
+                  placeholder="Nota (ej. tomada con el desayuno)"
+                  value={s.nota}
+                  onChange={(e) => updateItem('exposicionSolar', i, { nota: e.target.value })}
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={i}
+              ref={refUltimoAgregado('exposicionSolar', registro.exposicionSolar, i)}
+              tabIndex={-1}
+              className="border border-rose-100 rounded-xl p-3 space-y-2 outline-none"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-rose-700 text-sm flex items-center gap-1.5">
+                  ☀️ Exposición solar
+                </span>
+                <button type="button" onClick={() => removeItem('exposicionSolar', i)} className="text-gray-400 text-sm hover:text-red-500">
+                  Quitar
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {MOMENTOS.map((m) => (
+                  <ToggleChip key={m} active={s.momentoDia === m} onClick={() => updateItem('exposicionSolar', i, { momentoDia: m })}>
+                    {m}
                   </ToggleChip>
                 ))}
               </div>
-            </Field>
-            {uvCargando[i] && <p className="text-xs text-gray-400">Calculando…</p>}
-            {uvError[i] && <p className="text-xs text-red-500">{uvError[i]}</p>}
-            {!uvCargando[i] && !uvError[i] && s.uvIndex != null && (
-              <div className="text-xs text-amber-700 space-y-0.5 bg-amber-50 rounded-lg p-2">
-                <p>Índice UV {Number(s.duracion) > 0 ? 'medio durante la exposición' : 'en ese momento'}: {s.uvIndex}</p>
-                {s.porcentajeTiempoSeguro != null && <p>Tiempo seguro usado: {s.porcentajeTiempoSeguro}%</p>}
-                {s.vitaminaDIU != null && <p>Vitamina D estimada: {s.vitaminaDIU} UI</p>}
-                {(s.porcentajeTiempoSeguro == null || s.vitaminaDIU == null) && (!perfil?.fototipo || !perfil?.alturaCm) && (
-                  <p className="text-gray-500">Añade altura y fototipo en Embarazo para calcular el % seguro y la vitamina D.</p>
-                )}
-                <p className="text-gray-400">(Estimación aproximada, no una medición clínica)</p>
+              <Field label="Ubicación">
+                <select
+                  value={s.ubicacion || UBICACIONES[0]}
+                  onChange={(e) => {
+                    updateItem('exposicionSolar', i, { ubicacion: e.target.value });
+                    recalcularExposicion(i, { ubicacion: e.target.value });
+                  }}
+                  className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+                >
+                  {UBICACIONES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <TextInput
+                  type="time"
+                  value={s.horaInicio}
+                  onChange={(e) => {
+                    updateItem('exposicionSolar', i, { horaInicio: e.target.value });
+                    recalcularExposicion(i, { horaInicio: e.target.value });
+                  }}
+                />
+                <TextInput
+                  type="number"
+                  placeholder="Minutos"
+                  value={s.duracion}
+                  onChange={(e) => {
+                    updateItem('exposicionSolar', i, { duracion: e.target.value });
+                    recalcularExposicion(i, { duracion: e.target.value });
+                  }}
+                />
               </div>
-            )}
-            <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={s.spf}
-                onChange={(e) => {
-                  updateItem('exposicionSolar', i, { spf: e.target.checked });
-                  recalcularExposicion(i, { spf: e.target.checked });
-                }}
-              />
-              Con protección solar
-            </label>
-            {s.spf && (
-              <TextInput
-                type="number"
-                placeholder="Factor SPF"
-                value={s.factorSpf}
-                onChange={(e) => {
-                  updateItem('exposicionSolar', i, { factorSpf: e.target.value });
-                  recalcularExposicion(i, { factorSpf: e.target.value });
-                }}
-              />
-            )}
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() =>
-            addItem('exposicionSolar', {
-              ubicacion: UBICACIONES[0],
-              uvIndex: null,
-              bsaFraccion: BSA_POR_DEFECTO,
-              porcentajeTiempoSeguro: null,
-              vitaminaDIU: null,
-              horaInicio: '',
-              duracion: '',
-              momentoDia: 'mañana',
-              spf: false,
-              factorSpf: '',
-              partesExpuestas: [],
-              directa: true,
-              nota: ''
-            })
-          }
-          className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1"
-        >
-          + Añadir exposición solar
-        </button>
+              <Field label="Parte del cuerpo expuesta">
+                <div className="flex flex-wrap gap-2">
+                  {PARTES_CUERPO_OPCIONES.map((op) => (
+                    <ToggleChip
+                      key={op.valor}
+                      active={(s.bsaFraccion ?? BSA_POR_DEFECTO) === op.valor}
+                      onClick={() => {
+                        updateItem('exposicionSolar', i, { bsaFraccion: op.valor });
+                        recalcularExposicion(i, { bsaFraccion: op.valor });
+                      }}
+                    >
+                      {op.label}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </Field>
+              {uvCargando[i] && <p className="text-xs text-gray-400">Calculando…</p>}
+              {uvError[i] && <p className="text-xs text-red-500">{uvError[i]}</p>}
+              {!uvCargando[i] && !uvError[i] && s.uvIndex != null && (
+                <div className="text-xs text-amber-700 space-y-0.5 bg-amber-50 rounded-lg p-2">
+                  <p>Índice UV {Number(s.duracion) > 0 ? 'medio durante la exposición' : 'en ese momento'}: {s.uvIndex}</p>
+                  {s.porcentajeTiempoSeguro != null && <p>Tiempo seguro usado: {s.porcentajeTiempoSeguro}%</p>}
+                  {s.vitaminaDIU != null && <p>Vitamina D estimada: {s.vitaminaDIU} UI</p>}
+                  {(s.porcentajeTiempoSeguro == null || s.vitaminaDIU == null) && (!perfil?.fototipo || !perfil?.alturaCm) && (
+                    <p className="text-gray-500">Añade altura y fototipo en Embarazo para calcular el % seguro y la vitamina D.</p>
+                  )}
+                  <p className="text-gray-400">(Estimación aproximada, no una medición clínica)</p>
+                </div>
+              )}
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={s.spf}
+                  onChange={(e) => {
+                    updateItem('exposicionSolar', i, { spf: e.target.checked });
+                    recalcularExposicion(i, { spf: e.target.checked });
+                  }}
+                />
+                Con protección solar
+              </label>
+              {s.spf && (
+                <TextInput
+                  type="number"
+                  placeholder="Factor SPF"
+                  value={s.factorSpf}
+                  onChange={(e) => {
+                    updateItem('exposicionSolar', i, { factorSpf: e.target.value });
+                    recalcularExposicion(i, { factorSpf: e.target.value });
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() =>
+              addItem('exposicionSolar', {
+                tipo: 'suplemento',
+                pastillas: 1,
+                vitaminaDIU: 4000,
+                horaInicio: '',
+                nota: ''
+              })
+            }
+            className="text-sm text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-full px-3 py-1 font-medium"
+          >
+            + Añadir suplemento (4.000 UI)
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              addItem('exposicionSolar', {
+                tipo: 'sol',
+                ubicacion: UBICACIONES[0],
+                uvIndex: null,
+                bsaFraccion: BSA_POR_DEFECTO,
+                porcentajeTiempoSeguro: null,
+                vitaminaDIU: null,
+                horaInicio: '',
+                duracion: '',
+                momentoDia: 'mañana',
+                spf: false,
+                factorSpf: '',
+                partesExpuestas: [],
+                directa: true,
+                nota: ''
+              })
+            }
+            className="text-sm text-rose-500 border border-rose-300 rounded-full px-3 py-1 hover:bg-rose-50"
+          >
+            + Añadir exposición solar
+          </button>
+        </div>
       </Section>
 
       <Section id="medicacion" title="Medicación y suplementos" open={!!openSections.medicacion} onToggle={toggleSection} onCopy={copiarSeccion} hasContent={hasMedicacion(registro)}>

@@ -12,6 +12,7 @@ const sintomaSchema = new mongoose.Schema(
   {
     tipo: String,
     momento: [sintomaMomentoSchema],
+    intensidad: { type: Number, min: 0, max: 10 },
     duracion: String,
     nota: String
   },
@@ -40,6 +41,8 @@ const ejercicioSchema = new mongoose.Schema(
 
 const exposicionSolarSchema = new mongoose.Schema(
   {
+    tipo: { type: String, enum: ['sol', 'suplemento'], default: 'sol' },
+    pastillas: Number,
     ubicacion: String,
     uvIndex: Number,
     bsaFraccion: Number,
@@ -106,9 +109,22 @@ const deposicionSchema = new mongoose.Schema(
 
 const infusionSchema = new mongoose.Schema(
   {
-    tipos: [{ type: String, enum: ['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien'] }],
+    tipos: [{ type: String }],
     hora: String,
     efecto: String
+  },
+  { _id: false }
+);
+
+const glucosaSchema = new mongoose.Schema(
+  {
+    antesDesayuno: Number,
+    despuesDesayuno: Number,
+    antesComida: Number,
+    despuesComida: Number,
+    antesCena: Number,
+    despuesCena: Number,
+    nota: String
   },
   { _id: false }
 );
@@ -179,7 +195,8 @@ const registroSchema = new mongoose.Schema(
       manana: momentoDiaSchema,
       tarde: momentoDiaSchema,
       noche: momentoDiaSchema
-    }
+    },
+    glucosa: glucosaSchema
   },
   { timestamps: true }
 );

@@ -6,6 +6,7 @@ import logo from '../assets/logo.jpg';
 
 const tabs = [
   { to: '/', label: 'Hoy', icon: '📋' },
+  { to: '/azucar', label: 'Azúcar', icon: '🩸' },
   { to: '/calendario', label: 'Calendario', icon: '📅' },
   { to: '/evolucion', label: 'Evolución', icon: '📈' },
   { to: '/embarazo', label: 'Embarazo', icon: '🤰' },

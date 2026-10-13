@@ -11,6 +11,7 @@ import uploadRoutes from './routes/upload.js';
 import uvRoutes from './routes/uv.js';
 import polarRoutes from './routes/polar.js';
 import mcpRoutes from './routes/mcp.js';
+import azucarRoutes from './routes/azucar.js';
 
 if (!process.env.MONGODB_URI && !process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'gestabien-dev-secret-change-me';
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/registros', requireAuth, registrosRoutes);
+app.use('/api/azucar', requireAuth, azucarRoutes);
 app.use('/api/upload', requireAuth, uploadRoutes);
 app.use('/api/uv', requireAuth, uvRoutes);
 app.use('/api/polar', requireAuth, polarRoutes);

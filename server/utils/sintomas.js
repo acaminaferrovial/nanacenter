@@ -2,5 +2,6 @@
 export const SINTOMA_TIPOS = [
   'Náuseas', 'Vómitos', 'Dolor lumbar', 'Cansancio', 'Hinchazón', 'Dolor de cabeza',
   'Mareo', 'Acidez', 'Calambres', 'Dolor pélvico', 'Insomnio',
-  'Dolor de tetas', 'Gases', 'Cólicos', 'Mal aliento'
+  'Dolor de tetas', 'Gases', 'Cólicos', 'Mal aliento',
+  'Distensión', 'Vejiga inquieta', 'Dolor de hueso sacro', 'Dolor de cadera'
 ];

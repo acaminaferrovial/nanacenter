@@ -297,6 +297,7 @@ export function registerTools(server) {
       inputSchema: {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         tipo: z.enum(SINTOMA_TIPOS).describe('Tipo de síntoma. Debe ser exactamente uno de los valores de la lista, para que coincida con los que ya usa la app.'),
+        intensidad: escala010.optional().describe('Intensidad general del síntoma de 0 a 10'),
         momento: z
           .array(
             z.object({
@@ -304,12 +305,13 @@ export function registerTools(server) {
               intensidad: escala010.optional().describe('Intensidad de este síntoma en ese momento concreto, de 0 a 10')
             })
           )
-          .describe('Uno o varios momentos del día en los que ocurrió, cada uno con su propia intensidad. Ej: [{"momento":"mañana","intensidad":7},{"momento":"noche","intensidad":2}]'),
+          .optional()
+          .describe('Momento histórico opcional'),
         duracion: z.string().optional(),
         nota: z.string().optional()
       }
     },
-    async ({ fecha, tipo, momento, duracion, nota }) => {
+    async ({ fecha, tipo, intensidad, momento, duracion, nota }) => {
       const f = parseFecha(fecha);
       if (!f) return fail('Fecha inválida, usa el formato YYYY-MM-DD');
 
@@ -318,7 +320,7 @@ export function registerTools(server) {
       const registro = await Registro.findOneAndUpdate(
         { usuarioId: usuario._id, fecha: f },
         {
-          $push: { sintomas: { tipo, momento, duracion, nota } },
+          $push: { sintomas: { tipo, intensidad, momento: momento || [], duracion, nota } },
           $set: { ...gestacion, usuarioId: usuario._id, fecha: f }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
@@ -369,7 +371,7 @@ export function registerTools(server) {
       inputSchema: {
         fecha: z.string().describe('Fecha en formato YYYY-MM-DD'),
         tipos: z
-          .array(z.enum(['Manzanilla', 'Romero', 'Tomillo', 'Duermebien', 'Meabien', 'Cagabien']))
+          .array(z.enum(['Jengibre', 'Tomillo', 'Hinojo', 'Tila', 'Mate', 'Manzanilla']))
           .describe('Una o varias infusiones tomadas juntas'),
         hora: z.string().optional().describe('Hora aproximada, p.ej. "21:00"'),
         efecto: z.string().optional().describe('Efecto notado, p.ej. "me hizo descansar", "me sentí bien"')

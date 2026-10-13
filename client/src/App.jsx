@@ -8,6 +8,7 @@ import Calendario from './pages/Calendario.jsx';
 import Evolucion from './pages/Evolucion.jsx';
 import Embarazo from './pages/Embarazo.jsx';
 import Diario from './pages/Diario.jsx';
+import Azucar from './pages/Azucar.jsx';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
       >
         <Route path="/" element={<Hoy />} />
         <Route path="/dia/:fecha" element={<RegistroDia />} />
+        <Route path="/azucar" element={<Azucar />} />
         <Route path="/calendario" element={<Calendario />} />
         <Route path="/evolucion" element={<Evolucion />} />
         <Route path="/embarazo" element={<Embarazo />} />

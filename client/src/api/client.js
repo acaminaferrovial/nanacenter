@@ -76,5 +76,9 @@ export const api = {
     });
 
     return data;
-  }
+  },
+  getAzucar: () => request('/azucar'),
+  guardarAzucar: (datos) => request('/azucar', { method: 'POST', body: datos }),
+  guardarAzucarBatch: (items) => request('/azucar/batch', { method: 'POST', body: { items } }),
+  eliminarAzucar: (fecha) => request(`/azucar/${fecha}`, { method: 'DELETE' })
 };
