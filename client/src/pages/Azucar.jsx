@@ -68,9 +68,9 @@ export default function Azucar() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Rango de fechas visibles en la hoja de cálculo
-  // Por petición: desde el 5 de octubre hasta el 31 de octubre de 2026
+  // Por petición: desde el 5 de octubre hasta el 30 de noviembre de 2026
   const [fechaInicio, setFechaInicio] = useState('2026-10-05');
-  const [fechaFin, setFechaFin] = useState('2026-10-31');
+  const [fechaFin, setFechaFin] = useState('2026-11-30');
 
   // Estado local editable de la tabla: { [fecha]: { antesDesayuno, despuesDesayuno, ... , nota, modificado } }
   const [filas, setFilas] = useState({});
@@ -628,7 +628,7 @@ export default function Azucar() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 print:hidden">
+        <div className="flex items-center gap-1.5 flex-wrap print:hidden">
           <button
             type="button"
             onClick={() => agregarSemana(-1)}
@@ -643,9 +643,38 @@ export default function Azucar() {
               setFechaInicio('2026-10-05');
               setFechaFin('2026-10-31');
             }}
-            className="px-2 py-1 rounded bg-rose-50 border border-rose-200 text-rose-700 font-medium"
+            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-10-05' && fechaFin === '2026-10-31'
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
           >
-            Octubre (5 - 31)
+            Octubre
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFechaInicio('2026-11-01');
+              setFechaFin('2026-11-30');
+            }}
+            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-11-01' && fechaFin === '2026-11-30'
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            Noviembre
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFechaInicio('2026-10-05');
+              setFechaFin('2026-11-30');
+            }}
+            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-10-05' && fechaFin === '2026-11-30'
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            Oct + Nov
           </button>
           <button
             type="button"
@@ -714,9 +743,8 @@ export default function Azucar() {
                   return (
                     <tr
                       key={fecha}
-                      className={`hover:bg-rose-50/20 transition-colors ${
-                        esHoy ? 'bg-rose-50/40 font-medium' : ''
-                      }`}
+                      className={`hover:bg-rose-50/20 transition-colors ${esHoy ? 'bg-rose-50/40 font-medium' : ''
+                        }`}
                     >
                       {/* Columna Día */}
                       <td className="py-1.5 px-3 text-left whitespace-nowrap border-r border-gray-200 bg-gray-50/50">
@@ -753,13 +781,12 @@ export default function Azucar() {
                               onChange={(e) => handleCeldaChange(fecha, c.key, e.target.value)}
                               onBlur={() => guardarFila(fecha)}
                               onKeyDown={(e) => handleKeyDown(e, fecha, colIdx)}
-                              className={`w-full h-9 text-center text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-rose-500 focus:z-10 ${
-                                alto
+                              className={`w-full h-9 text-center text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-rose-500 focus:z-10 ${alto
                                   ? 'bg-amber-100 text-amber-900 font-bold border-2 border-amber-300'
                                   : valor !== ''
-                                  ? 'bg-white text-gray-800'
-                                  : 'bg-transparent text-gray-400 hover:bg-gray-50'
-                              }`}
+                                    ? 'bg-white text-gray-800'
+                                    : 'bg-transparent text-gray-400 hover:bg-gray-50'
+                                }`}
                             />
                           </td>
                         );
