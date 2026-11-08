@@ -643,10 +643,11 @@ export default function Azucar() {
               setFechaInicio('2026-10-05');
               setFechaFin('2026-10-31');
             }}
-            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-10-05' && fechaFin === '2026-10-31'
+            className={`px-2 py-1 rounded border font-medium ${
+              fechaInicio === '2026-10-05' && fechaFin === '2026-10-31'
                 ? 'bg-rose-50 border-rose-200 text-rose-700'
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+            }`}
           >
             Octubre
           </button>
@@ -656,10 +657,11 @@ export default function Azucar() {
               setFechaInicio('2026-11-01');
               setFechaFin('2026-11-30');
             }}
-            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-11-01' && fechaFin === '2026-11-30'
+            className={`px-2 py-1 rounded border font-medium ${
+              fechaInicio === '2026-11-01' && fechaFin === '2026-11-30'
                 ? 'bg-rose-50 border-rose-200 text-rose-700'
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+            }`}
           >
             Noviembre
           </button>
@@ -669,10 +671,11 @@ export default function Azucar() {
               setFechaInicio('2026-10-05');
               setFechaFin('2026-11-30');
             }}
-            className={`px-2 py-1 rounded border font-medium ${fechaInicio === '2026-10-05' && fechaFin === '2026-11-30'
+            className={`px-2 py-1 rounded border font-medium ${
+              fechaInicio === '2026-10-05' && fechaFin === '2026-11-30'
                 ? 'bg-rose-50 border-rose-200 text-rose-700'
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+            }`}
           >
             Oct + Nov
           </button>
@@ -743,8 +746,9 @@ export default function Azucar() {
                   return (
                     <tr
                       key={fecha}
-                      className={`hover:bg-rose-50/20 transition-colors ${esHoy ? 'bg-rose-50/40 font-medium' : ''
-                        }`}
+                      className={`hover:bg-rose-50/20 transition-colors ${
+                        esHoy ? 'bg-rose-50/40 font-medium' : ''
+                      }`}
                     >
                       {/* Columna Día */}
                       <td className="py-1.5 px-3 text-left whitespace-nowrap border-r border-gray-200 bg-gray-50/50">
@@ -781,12 +785,13 @@ export default function Azucar() {
                               onChange={(e) => handleCeldaChange(fecha, c.key, e.target.value)}
                               onBlur={() => guardarFila(fecha)}
                               onKeyDown={(e) => handleKeyDown(e, fecha, colIdx)}
-                              className={`w-full h-9 text-center text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-rose-500 focus:z-10 ${alto
+                              className={`w-full h-9 text-center text-xs font-semibold transition-colors outline-none focus:ring-2 focus:ring-rose-500 focus:z-10 ${
+                                alto
                                   ? 'bg-amber-100 text-amber-900 font-bold border-2 border-amber-300'
                                   : valor !== ''
-                                    ? 'bg-white text-gray-800'
-                                    : 'bg-transparent text-gray-400 hover:bg-gray-50'
-                                }`}
+                                  ? 'bg-white text-gray-800'
+                                  : 'bg-transparent text-gray-400 hover:bg-gray-50'
+                              }`}
                             />
                           </td>
                         );
