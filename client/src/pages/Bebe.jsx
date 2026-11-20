@@ -216,16 +216,35 @@ const LISTA_COMPRAS_BASE = [
   { codigo: 'comida-cojin-lactancia', categoria: 'Para la comida', nombre: 'Cojín de lactancia' }
 ];
 
-function Card({ title, right, children }) {
+const TIPOS_REVISION = ['Revisión rutinaria', 'Pediatra', 'Enfermería', 'Urgencias', 'Especialista', 'Otra'];
+
+function nombreDesdeUrl(url) {
+  return decodeURIComponent(url.split('/').pop() || url);
+}
+
+function Card({ title, right, collapsible = false, collapsed = false, onToggle, children }) {
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-rose-100/70 p-4 space-y-3">
-      {(title || right) && (
-        <div className="flex items-center justify-between gap-2">
-          {title && <h2 className="font-semibold text-rose-600">{title}</h2>}
-          {right}
-        </div>
-      )}
-      {children}
+      {(title || right) &&
+        (collapsible ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-rose-400 text-xs">{collapsed ? '▸' : '▾'}</span>
+              {title && <h2 className="font-semibold text-rose-600 truncate">{title}</h2>}
+            </div>
+            {right}
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            {title && <h2 className="font-semibold text-rose-600">{title}</h2>}
+            {right}
+          </div>
+        ))}
+      {(!collapsible || !collapsed) && children}
     </section>
   );
 }
@@ -264,42 +283,65 @@ function TamanoBebeTooltip({ active, payload }) {
   );
 }
 
+function PerimetroBebeTooltip({ active, payload }) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-white border border-rose-100 rounded-lg px-2.5 py-1.5 text-xs shadow">
+      <p className="font-semibold text-gray-800">{formatFechaLarga(d.fechaIso)}</p>
+      <p className="text-teal-600 font-semibold">{d.perimetro} cm</p>
+    </div>
+  );
+}
+
 export default function Bebe() {
-  const [vista, setVista] = useState('crecimiento'); // 'crecimiento' | 'vacunas' | 'compras'
+  const [vista, setVista] = useState('crecimiento'); // 'crecimiento' | 'revisiones' | 'vacunas' | 'compras'
   const [registros, setRegistros] = useState([]);
   const [vacunasBD, setVacunasBD] = useState([]);
   const [comprasBD, setComprasBD] = useState([]);
+  const [revisiones, setRevisiones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Formulario de nueva medición (se guarda por separado en BD: peso, tamaño y comentario)
+  // Formulario de nueva medición (se guarda por separado en BD: peso, tamaño, perímetro cefálico y comentario)
   const [fecha, setFecha] = useState(todayStr());
   const [peso, setPeso] = useState('');
   const [tamano, setTamano] = useState('');
+  const [perimetroCefalico, setPerimetroCefalico] = useState('');
   const [comentario, setComentario] = useState('');
   const [guardandoMedicion, setGuardandoMedicion] = useState(false);
 
-  // Estado de edición de vacunas
+  // Estado de revisiones pediátricas
+  const [formRevision, setFormRevision] = useState(null);
+  const [editandoRevisionId, setEditandoRevisionId] = useState(null);
+  const [guardandoRevision, setGuardandoRevision] = useState(false);
+  const [subiendoDocRevision, setSubiendoDocRevision] = useState(false);
+
+  // Estado de edición de vacunas y colapso por edad
   const [vacunaEditando, setVacunaEditando] = useState(null);
   const [guardandoVacuna, setGuardandoVacuna] = useState(false);
   const [nuevaVacunaForm, setNuevaVacunaForm] = useState(null);
+  const [edadesColapsadas, setEdadesColapsadas] = useState({});
 
-  // Estado de lista de compras
+  // Estado de lista de compras y colapso por categoría
   const [filtroCompras, setFiltroCompras] = useState('todos'); // 'todos' | 'pendientes' | 'comprados'
   const [compraEditando, setCompraEditando] = useState(null);
   const [guardandoCompra, setGuardandoCompra] = useState(false);
   const [nuevaCompraForm, setNuevaCompraForm] = useState(null);
+  const [categoriasColapsadas, setCategoriasColapsadas] = useState({});
 
   async function cargarDatos() {
     setErrorMsg('');
-    const [regs, vacs, comps] = await Promise.all([
+    const [regs, vacs, comps, revs] = await Promise.all([
       api.getBebeRegistros(),
       api.getBebeVacunas(),
-      api.getBebeCompras()
+      api.getBebeCompras(),
+      api.getBebeRevisiones()
     ]);
     setRegistros(regs || []);
     setVacunasBD(vacs || []);
     setComprasBD(comps || []);
+    setRevisiones(revs || []);
   }
 
   useEffect(() => {
@@ -329,6 +371,14 @@ export default function Bebe() {
     [registros]
   );
 
+  const registrosPerimetro = useMemo(
+    () =>
+      registros
+        .filter((r) => r.tipo === 'perimetroCefalico' && r.valor != null)
+        .sort((a, b) => a.fecha.localeCompare(b.fecha)),
+    [registros]
+  );
+
   const datosGraficaPeso = useMemo(
     () =>
       registrosPeso.map((r) => ({
@@ -347,6 +397,16 @@ export default function Bebe() {
         tamano: r.valor
       })),
     [registrosTamano]
+  );
+
+  const datosGraficaPerimetro = useMemo(
+    () =>
+      registrosPerimetro.map((r) => ({
+        fecha: formatFechaCorta(r.fecha),
+        fechaIso: r.fecha,
+        perimetro: r.valor
+      })),
+    [registrosPerimetro]
   );
 
   const ultimoPeso = registrosPeso.length > 0 ? registrosPeso[registrosPeso.length - 1] : null;
@@ -371,12 +431,14 @@ export default function Bebe() {
           createdAt: r.createdAt,
           peso: null,
           tamano: null,
+          perimetroCefalico: null,
           comentario: null
         });
       }
       const g = grupos.get(clave);
       if (r.tipo === 'peso') g.peso = r;
       if (r.tipo === 'tamano') g.tamano = r;
+      if (r.tipo === 'perimetroCefalico') g.perimetroCefalico = r;
       if (r.tipo === 'comentario') g.comentario = r;
     });
 
@@ -487,8 +549,8 @@ export default function Bebe() {
 
   async function handleGuardarMedicion(e) {
     e.preventDefault();
-    if (peso === '' && tamano === '' && comentario.trim() === '') {
-      setErrorMsg('Introduce al menos el peso, el tamaño o un comentario.');
+    if (peso === '' && tamano === '' && perimetroCefalico === '' && comentario.trim() === '') {
+      setErrorMsg('Introduce al menos el peso, el tamaño, el perímetro cefálico o un comentario.');
       return;
     }
 
@@ -499,10 +561,12 @@ export default function Bebe() {
         fecha,
         peso: peso === '' ? null : Number(peso),
         tamano: tamano === '' ? null : Number(tamano),
+        perimetroCefalico: perimetroCefalico === '' ? null : Number(perimetroCefalico),
         comentario: comentario.trim()
       });
       setPeso('');
       setTamano('');
+      setPerimetroCefalico('');
       setComentario('');
       await cargarDatos();
     } catch (err) {
@@ -518,13 +582,122 @@ export default function Bebe() {
       if (entrada.grupoId) {
         await api.eliminarBebeGrupo(entrada.grupoId);
       } else {
-        const reg = entrada.peso || entrada.tamano || entrada.comentario;
+        const reg = entrada.peso || entrada.tamano || entrada.perimetroCefalico || entrada.comentario;
         if (reg?._id) await api.eliminarBebeRegistro(reg._id);
       }
       await cargarDatos();
     } catch (err) {
       setErrorMsg(err.message || 'No se pudo eliminar el registro');
     }
+  }
+
+  function abrirNuevaRevision() {
+    setEditandoRevisionId(null);
+    setFormRevision({
+      fecha: todayStr(),
+      tipo: TIPOS_REVISION[0],
+      profesional: '',
+      resumen: '',
+      recomendaciones: '',
+      proximaRevision: '',
+      documentos: []
+    });
+  }
+
+  function abrirEditarRevision(rev) {
+    setEditandoRevisionId(rev._id);
+    setFormRevision({
+      fecha: rev.fecha,
+      tipo: rev.tipo || TIPOS_REVISION[0],
+      profesional: rev.profesional || '',
+      resumen: rev.resumen || '',
+      recomendaciones: rev.recomendaciones || '',
+      proximaRevision: rev.proximaRevision || '',
+      documentos: (rev.documentos || []).map((url) => ({ url, nombre: nombreDesdeUrl(url) }))
+    });
+  }
+
+  function cerrarFormRevision() {
+    setFormRevision(null);
+    setEditandoRevisionId(null);
+  }
+
+  async function handleArchivoRevision(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setSubiendoDocRevision(true);
+    setErrorMsg('');
+    try {
+      const resultado = await api.subirArchivo(file);
+      setFormRevision((f) => ({
+        ...f,
+        documentos: [...f.documentos, { url: resultado.secure_url, nombre: file.name }]
+      }));
+    } catch (err) {
+      setErrorMsg('No se pudo subir el archivo: ' + err.message);
+    } finally {
+      setSubiendoDocRevision(false);
+    }
+  }
+
+  async function handleGuardarRevision(e) {
+    e.preventDefault();
+    if (!formRevision) return;
+    setGuardandoRevision(true);
+    setErrorMsg('');
+    try {
+      const payload = {
+        fecha: formRevision.fecha,
+        tipo: formRevision.tipo,
+        profesional: formRevision.profesional,
+        resumen: formRevision.resumen,
+        recomendaciones: formRevision.recomendaciones,
+        proximaRevision: formRevision.proximaRevision || '',
+        documentos: formRevision.documentos.map((d) => d.url)
+      };
+
+      if (editandoRevisionId) {
+        await api.actualizarBebeRevision(editandoRevisionId, payload);
+      } else {
+        await api.crearBebeRevision(payload);
+      }
+      await cargarDatos();
+      cerrarFormRevision();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo guardar la revisión');
+    } finally {
+      setGuardandoRevision(false);
+    }
+  }
+
+  async function handleEliminarRevision(id) {
+    setErrorMsg('');
+    try {
+      await api.eliminarBebeRevision(id);
+      await cargarDatos();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo eliminar la revisión');
+    }
+  }
+
+  function toggleCategoriaCompra(cat) {
+    setCategoriasColapsadas((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  }
+
+  function toggleTodasCategoriasCompras() {
+    const todasColapsadas =
+      comprasPorCategoria.length > 0 && comprasPorCategoria.every(([cat]) => !!categoriasColapsadas[cat]);
+    const next = {};
+    comprasPorCategoria.forEach(([cat]) => {
+      next[cat] = !todasColapsadas;
+    });
+    setCategoriasColapsadas(next);
+  }
+
+  function toggleEdadVacuna(edad) {
+    setEdadesColapsadas((prev) => ({ ...prev, [edad]: !prev[edad] }));
   }
 
   async function handleToggleRapidoVacuna(vacuna) {
@@ -696,22 +869,33 @@ export default function Bebe() {
       </div>
 
       {/* Selector de subsección */}
-      <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-2xl border border-rose-100 shadow-sm">
+      <div className="grid grid-cols-4 gap-1 bg-white p-1 rounded-2xl border border-rose-100 shadow-sm">
         <button
           type="button"
           onClick={() => setVista('crecimiento')}
-          className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
+          className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${
             vista === 'crecimiento'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
           }`}
         >
-          📏 Peso y talla
+          📏 Crecim.
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista('revisiones')}
+          className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${
+            vista === 'revisiones'
+              ? 'bg-rose-500 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-rose-50'
+          }`}
+        >
+          🩺 Revis.
         </button>
         <button
           type="button"
           onClick={() => setVista('vacunas')}
-          className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
+          className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${
             vista === 'vacunas'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
@@ -722,7 +906,7 @@ export default function Bebe() {
         <button
           type="button"
           onClick={() => setVista('compras')}
-          className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
+          className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${
             vista === 'compras'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
@@ -748,7 +932,7 @@ export default function Bebe() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Peso (kg)</label>
                   <input
@@ -759,7 +943,7 @@ export default function Bebe() {
                     placeholder="Ej. 3.45"
                     value={peso}
                     onChange={(e) => setPeso(e.target.value)}
-                    className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5"
                   />
                 </div>
                 <div>
@@ -772,7 +956,20 @@ export default function Bebe() {
                     placeholder="Ej. 51.5"
                     value={tamano}
                     onChange={(e) => setTamano(e.target.value)}
-                    className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5"
+                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">P. cefálico (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder="Ej. 35.0"
+                    value={perimetroCefalico}
+                    onChange={(e) => setPerimetroCefalico(e.target.value)}
+                    className="w-full text-sm rounded-lg border border-gray-300 px-2.5 py-1.5"
                   />
                 </div>
               </div>
@@ -848,6 +1045,29 @@ export default function Bebe() {
             </Card>
           )}
 
+          {/* Gráfica de perímetro cefálico (si hay datos) */}
+          {datosGraficaPerimetro.length > 0 && (
+            <Card title="Evolución del perímetro cefálico (cm)">
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={datosGraficaPerimetro}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3e8e8" />
+                  <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip content={<PerimetroBebeTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="perimetro"
+                    name="Perímetro cefálico (cm)"
+                    stroke="#14b8a6"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#14b8a6' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
           {/* Historial de mediciones */}
           <Card title="Historial de registros">
             {historialAgrupado.length === 0 ? (
@@ -883,6 +1103,11 @@ export default function Bebe() {
                           📏 {entrada.tamano.valor} cm
                         </span>
                       )}
+                      {entrada.perimetroCefalico && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-teal-100 text-teal-700 px-2.5 py-0.5 rounded-full">
+                          🧠 {entrada.perimetroCefalico.valor} cm
+                        </span>
+                      )}
                     </div>
 
                     {entrada.comentario?.texto && (
@@ -894,6 +1119,216 @@ export default function Bebe() {
             )}
           </Card>
         </>
+      )}
+
+      {vista === 'revisiones' && (
+        <Card
+          title="Revisiones pediátricas"
+          right={
+            !formRevision && (
+              <button
+                type="button"
+                onClick={abrirNuevaRevision}
+                className="text-xs font-semibold text-rose-600 border border-rose-300 rounded-full px-3 py-1 hover:bg-rose-50"
+              >
+                + Añadir revisión
+              </button>
+            )
+          }
+        >
+          {formRevision && (
+            <form
+              onSubmit={handleGuardarRevision}
+              className="border border-rose-200 rounded-xl p-3 space-y-2.5 bg-rose-50/30"
+            >
+              <p className="text-xs font-semibold text-rose-700">
+                {editandoRevisionId ? 'Editar revisión pediátrica' : 'Nueva revisión pediátrica'}
+              </p>
+
+              <div className="flex flex-wrap gap-1.5">
+                {TIPOS_REVISION.map((tipo) => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setFormRevision((f) => ({ ...f, tipo }))}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      formRevision.tipo === tipo
+                        ? 'bg-rose-500 text-white border-rose-500 font-medium'
+                        : 'bg-white text-gray-600 border-gray-300'
+                    }`}
+                  >
+                    {tipo}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-0.5">Fecha</label>
+                  <input
+                    type="date"
+                    required
+                    value={formRevision.fecha}
+                    onChange={(e) => setFormRevision((f) => ({ ...f, fecha: e.target.value }))}
+                    className="w-full text-xs rounded-lg border border-gray-300 px-2.5 py-1.5 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-0.5">Próxima revisión (opc.)</label>
+                  <input
+                    type="date"
+                    value={formRevision.proximaRevision}
+                    onChange={(e) => setFormRevision((f) => ({ ...f, proximaRevision: e.target.value }))}
+                    className="w-full text-xs rounded-lg border border-gray-300 px-2.5 py-1.5 bg-white"
+                  />
+                </div>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Pediatra / Centro de salud (opcional)"
+                value={formRevision.profesional}
+                onChange={(e) => setFormRevision((f) => ({ ...f, profesional: e.target.value }))}
+                className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5 bg-white"
+              />
+
+              <textarea
+                rows={2}
+                placeholder="Resumen de la consulta (peso/talla comentados, hitos, exploración…)"
+                value={formRevision.resumen}
+                onChange={(e) => setFormRevision((f) => ({ ...f, resumen: e.target.value }))}
+                className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5 bg-white"
+              />
+
+              <textarea
+                rows={2}
+                placeholder="Recomendaciones / pautas (opcional)"
+                value={formRevision.recomendaciones}
+                onChange={(e) => setFormRevision((f) => ({ ...f, recomendaciones: e.target.value }))}
+                className="w-full text-sm rounded-lg border border-gray-300 px-3 py-1.5 bg-white"
+              />
+
+              <div>
+                <span className="block text-xs text-gray-600 mb-1">Documentos (informes, recetas, fotos…)</span>
+                {formRevision.documentos.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {formRevision.documentos.map((doc, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between text-xs bg-rose-50 rounded-lg px-2 py-1"
+                      >
+                        <a href={doc.url} target="_blank" rel="noreferrer" className="text-rose-600 truncate">
+                          📎 {doc.nombre}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormRevision((f) => ({
+                              ...f,
+                              documentos: f.documentos.filter((_, idx) => idx !== i)
+                            }))
+                          }
+                          className="text-gray-400 ml-2 shrink-0"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleArchivoRevision}
+                  disabled={subiendoDocRevision}
+                  className="text-xs"
+                />
+                {subiendoDocRevision && <p className="text-xs text-gray-400 mt-1">Subiendo…</p>}
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={guardandoRevision}
+                  className="flex-1 bg-rose-500 text-white rounded-lg py-1.5 text-sm font-semibold disabled:opacity-50"
+                >
+                  {guardandoRevision ? 'Guardando…' : 'Guardar revisión'}
+                </button>
+                <button
+                  type="button"
+                  onClick={cerrarFormRevision}
+                  className="px-3 rounded-lg border border-gray-300 text-sm text-gray-600 bg-white"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {revisiones.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Todavía no hay revisiones pediátricas registradas.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {revisiones.map((rev) => (
+                <div key={rev._id} className="border border-rose-100 rounded-xl p-3 space-y-1.5 bg-rose-50/20">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {rev.tipo} · {formatFechaLarga(rev.fecha)}
+                      </p>
+                      {rev.profesional && <p className="text-xs text-gray-500">👩‍⚕️ {rev.profesional}</p>}
+                    </div>
+                    <div className="flex gap-2 text-xs shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => abrirEditarRevision(rev)}
+                        className="text-rose-500 font-medium"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEliminarRevision(rev._id)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+
+                  {rev.resumen && <p className="text-xs text-gray-700">{rev.resumen}</p>}
+                  {rev.recomendaciones && (
+                    <p className="text-xs text-gray-500">
+                      <span className="font-medium">Recomendaciones:</span> {rev.recomendaciones}
+                    </p>
+                  )}
+                  {rev.proximaRevision && (
+                    <p className="text-xs text-rose-600 font-medium">
+                      📅 Próxima revisión: {formatFechaLarga(rev.proximaRevision)}
+                    </p>
+                  )}
+                  {rev.documentos?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {rev.documentos.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-rose-500 underline truncate max-w-[160px]"
+                        >
+                          📎 {nombreDesdeUrl(url)}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       {vista === 'vacunas' && (
@@ -1024,8 +1459,22 @@ export default function Bebe() {
             )}
           </Card>
 
-          {vacunasPorEdad.map(([edad, items]) => (
-            <Card key={edad} title={edad}>
+          {vacunasPorEdad.map(([edad, items]) => {
+            const puestasEdad = items.filter((v) => v.estado === 'puesta').length;
+            const aplicablesEdad = items.filter((v) => v.estado !== 'no_aplica').length;
+            return (
+            <Card
+              key={edad}
+              title={edad}
+              collapsible
+              collapsed={!!edadesColapsadas[edad]}
+              onToggle={() => toggleEdadVacuna(edad)}
+              right={
+                <span className="text-[11px] font-medium text-gray-500">
+                  {puestasEdad}/{aplicablesEdad}
+                </span>
+              }
+            >
               <div className="space-y-2">
                 {items.map((v) => {
                   const estaEditando = vacunaEditando?.codigo === v.codigo;
@@ -1181,7 +1630,8 @@ export default function Bebe() {
                 })}
               </div>
             </Card>
-          ))}
+            );
+          })}
         </>
       )}
 
@@ -1228,23 +1678,36 @@ export default function Bebe() {
                 ))}
               </div>
 
-              {!nuevaCompraForm && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setNuevaCompraForm({
-                      nombre: '',
-                      categoria: 'Para el paseo',
-                      comprado: false,
-                      descartado: false,
-                      notas: ''
-                    })
-                  }
-                  className="text-xs font-semibold text-rose-600 border border-rose-300 rounded-full px-3 py-1 hover:bg-rose-50"
-                >
-                  + Añadir artículo
-                </button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {comprasPorCategoria.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleTodasCategoriasCompras}
+                    className="text-xs text-gray-600 border border-gray-200 rounded-full px-2.5 py-1 hover:bg-rose-50"
+                  >
+                    {comprasPorCategoria.every(([cat]) => !!categoriasColapsadas[cat])
+                      ? 'Desplegar todas'
+                      : 'Plegar todas'}
+                  </button>
+                )}
+                {!nuevaCompraForm && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNuevaCompraForm({
+                        nombre: '',
+                        categoria: 'Para el paseo',
+                        comprado: false,
+                        descartado: false,
+                        notas: ''
+                      })
+                    }
+                    className="text-xs font-semibold text-rose-600 border border-rose-300 rounded-full px-3 py-1 hover:bg-rose-50"
+                  >
+                    + Añadir artículo
+                  </button>
+                )}
+              </div>
             </div>
 
             {nuevaCompraForm && (
@@ -1314,6 +1777,9 @@ export default function Bebe() {
                 <Card
                   key={categoria}
                   title={categoria}
+                  collapsible
+                  collapsed={!!categoriasColapsadas[categoria]}
+                  onToggle={() => toggleCategoriaCompra(categoria)}
                   right={
                     <span className="text-[11px] font-medium text-gray-500">
                       {compradosCat}/{activosCat.length}

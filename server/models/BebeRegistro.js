@@ -8,7 +8,7 @@ const bebeRegistroSchema = new mongoose.Schema(
     tipo: {
       type: String,
       required: true,
-      enum: ['peso', 'tamano', 'comentario'],
+      enum: ['peso', 'tamano', 'perimetroCefalico', 'comentario'],
       index: true
     },
     valor: { type: Number },

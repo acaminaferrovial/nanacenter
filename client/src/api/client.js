@@ -97,5 +97,9 @@ export const api = {
   eliminarBebeVacuna: (codigo) => request(`/bebe/vacunas/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
   getBebeCompras: () => request('/bebe/compras'),
   guardarBebeCompra: (datos) => request('/bebe/compras', { method: 'POST', body: datos }),
-  eliminarBebeCompra: (codigo) => request(`/bebe/compras/${encodeURIComponent(codigo)}`, { method: 'DELETE' })
+  eliminarBebeCompra: (codigo) => request(`/bebe/compras/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
+  getBebeRevisiones: () => request('/bebe/revisiones'),
+  crearBebeRevision: (datos) => request('/bebe/revisiones', { method: 'POST', body: datos }),
+  actualizarBebeRevision: (id, datos) => request(`/bebe/revisiones/${id}`, { method: 'PATCH', body: datos }),
+  eliminarBebeRevision: (id) => request(`/bebe/revisiones/${id}`, { method: 'DELETE' })
 };

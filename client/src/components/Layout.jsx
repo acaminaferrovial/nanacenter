@@ -23,9 +23,15 @@ export default function Layout() {
   const location = useLocation();
   const [avisoPolar, setAvisoPolar] = useState('');
   const [otrosAbierto, setOtrosAbierto] = useState(false);
+  const [modoNoche, setModoNoche] = useState(() => localStorage.getItem('gestabien_dark_mode') === 'true');
   const yaProcesado = useRef(false);
 
   const esRutaOtros = tabsOtros.some((t) => location.pathname === t.to || location.pathname.startsWith(`${t.to}/`));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', modoNoche);
+    localStorage.setItem('gestabien_dark_mode', String(modoNoche));
+  }, [modoNoche]);
 
   useEffect(() => {
     setOtrosAbierto(false);
@@ -60,14 +66,25 @@ export default function Layout() {
           <img src={logo} alt="" className="w-8 h-8 rounded-full object-cover" />
           <span className="font-bold text-rose-600">Ñaña Center</span>
         </span>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-rose-600"
-        >
-          {user?.nombre && <span className="hidden sm:inline">{user.nombre}</span>}
-          Salir
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setModoNoche((v) => !v)}
+            title={modoNoche ? 'Cambiar a modo claro' : 'Cambiar a modo noche'}
+            aria-label={modoNoche ? 'Cambiar a modo claro' : 'Cambiar a modo noche'}
+            className="text-lg leading-none px-2 py-1 rounded-lg border border-rose-100 hover:bg-rose-50 transition-colors"
+          >
+            {modoNoche ? '☀️' : '🌙'}
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-rose-600"
+          >
+            {user?.nombre && <span className="hidden sm:inline">{user.nombre}</span>}
+            Salir
+          </button>
+        </div>
       </header>
       {avisoPolar && (
         <div className="bg-amber-100 text-amber-800 text-sm text-center py-1.5 px-2">{avisoPolar}</div>

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import BebeRegistro from '../models/BebeRegistro.js';
 import BebeVacuna from '../models/BebeVacuna.js';
 import BebeCompra from '../models/BebeCompra.js';
+import BebeRevision from '../models/BebeRevision.js';
 import { parseFecha, fechaKey } from '../utils/fecha.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -37,12 +38,12 @@ function serializarVacuna(v) {
   };
 }
 
-// GET /api/bebe/registros — Obtener registros individuales (opcional ?tipo=peso|tamano|comentario)
+// GET /api/bebe/registros — Obtener registros individuales (opcional ?tipo=peso|tamano|perimetroCefalico|comentario)
 router.get(
   '/registros',
   asyncHandler(async (req, res) => {
     const filtro = { usuarioId: req.userId };
-    if (req.query.tipo && ['peso', 'tamano', 'comentario'].includes(req.query.tipo)) {
+    if (req.query.tipo && ['peso', 'tamano', 'perimetroCefalico', 'comentario'].includes(req.query.tipo)) {
       filtro.tipo = req.query.tipo;
     }
 
@@ -51,20 +52,25 @@ router.get(
   })
 );
 
-// POST /api/bebe/mediciones — Guarda peso, tamaño y comentario como registros separados con mismo grupoId
+// POST /api/bebe/mediciones — Guarda peso, tamaño, perímetro cefálico y comentario como registros separados con mismo grupoId
 router.post(
   '/mediciones',
   asyncHandler(async (req, res) => {
-    const { fecha: fechaStr, peso, tamano, comentario } = req.body;
+    const { fecha: fechaStr, peso, tamano, perimetroCefalico, comentario } = req.body;
     const fecha = parseFecha(fechaStr);
     if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
 
     const tienePeso = peso !== '' && peso !== null && peso !== undefined && !Number.isNaN(Number(peso));
     const tieneTamano = tamano !== '' && tamano !== null && tamano !== undefined && !Number.isNaN(Number(tamano));
+    const tienePerimetro =
+      perimetroCefalico !== '' &&
+      perimetroCefalico !== null &&
+      perimetroCefalico !== undefined &&
+      !Number.isNaN(Number(perimetroCefalico));
     const tieneComentario = typeof comentario === 'string' && comentario.trim() !== '';
 
-    if (!tienePeso && !tieneTamano && !tieneComentario) {
-      return res.status(400).json({ error: 'Introduce al menos peso, tamaño o un comentario' });
+    if (!tienePeso && !tieneTamano && !tienePerimetro && !tieneComentario) {
+      return res.status(400).json({ error: 'Introduce al menos peso, tamaño, perímetro cefálico o un comentario' });
     }
 
     const grupoId = crypto.randomUUID();
@@ -88,6 +94,17 @@ router.post(
         grupoId,
         tipo: 'tamano',
         valor: Number(tamano),
+        unidad: 'cm'
+      });
+    }
+
+    if (tienePerimetro) {
+      docsACrear.push({
+        usuarioId: req.userId,
+        fecha,
+        grupoId,
+        tipo: 'perimetroCefalico',
+        valor: Number(perimetroCefalico),
         unidad: 'cm'
       });
     }
@@ -272,6 +289,108 @@ router.delete(
       usuarioId: req.userId,
       codigo: req.params.codigo
     });
+    res.json({ ok: true });
+  })
+);
+
+function serializarRevision(r) {
+  return {
+    _id: r._id,
+    fecha: fechaKey(r.fecha),
+    tipo: r.tipo || 'Revisión rutinaria',
+    profesional: r.profesional || '',
+    resumen: r.resumen || '',
+    recomendaciones: r.recomendaciones || '',
+    proximaRevision: r.proximaRevision ? fechaKey(r.proximaRevision) : '',
+    documentos: r.documentos || [],
+    createdAt: r.createdAt
+  };
+}
+
+// GET /api/bebe/revisiones — Listar revisiones pediátricas
+router.get(
+  '/revisiones',
+  asyncHandler(async (req, res) => {
+    const revisiones = await BebeRevision.find({ usuarioId: req.userId }).sort({ fecha: -1, createdAt: -1 });
+    res.json(revisiones.map(serializarRevision));
+  })
+);
+
+// POST /api/bebe/revisiones — Crear una revisión pediátrica
+router.post(
+  '/revisiones',
+  asyncHandler(async (req, res) => {
+    const { fecha: fechaStr, tipo, profesional, resumen, recomendaciones, proximaRevision, documentos } = req.body;
+    const fecha = parseFecha(fechaStr);
+    if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+
+    let proxParsed = null;
+    if (proximaRevision) {
+      proxParsed = parseFecha(proximaRevision);
+      if (!proxParsed) return res.status(400).json({ error: 'Fecha de próxima revisión inválida, usa YYYY-MM-DD' });
+    }
+
+    const rev = await BebeRevision.create({
+      usuarioId: req.userId,
+      fecha,
+      tipo: tipo || 'Revisión rutinaria',
+      profesional: profesional || '',
+      resumen: resumen || '',
+      recomendaciones: recomendaciones || '',
+      proximaRevision: proxParsed,
+      documentos: Array.isArray(documentos) ? documentos : []
+    });
+
+    res.status(201).json(serializarRevision(rev));
+  })
+);
+
+// PATCH /api/bebe/revisiones/:id — Actualizar una revisión pediátrica
+router.patch(
+  '/revisiones/:id',
+  asyncHandler(async (req, res) => {
+    const { fecha: fechaStr, tipo, profesional, resumen, recomendaciones, proximaRevision, documentos } = req.body;
+    const datos = {};
+
+    if (fechaStr !== undefined) {
+      const fecha = parseFecha(fechaStr);
+      if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+      datos.fecha = fecha;
+    }
+    if (tipo !== undefined) datos.tipo = tipo;
+    if (profesional !== undefined) datos.profesional = profesional;
+    if (resumen !== undefined) datos.resumen = resumen;
+    if (recomendaciones !== undefined) datos.recomendaciones = recomendaciones;
+    if (proximaRevision !== undefined) {
+      if (!proximaRevision) {
+        datos.proximaRevision = null;
+      } else {
+        const proxParsed = parseFecha(proximaRevision);
+        if (!proxParsed) return res.status(400).json({ error: 'Fecha de próxima revisión inválida' });
+        datos.proximaRevision = proxParsed;
+      }
+    }
+    if (documentos !== undefined) datos.documentos = Array.isArray(documentos) ? documentos : [];
+
+    const rev = await BebeRevision.findOneAndUpdate(
+      { _id: req.params.id, usuarioId: req.userId },
+      { $set: datos },
+      { new: true, runValidators: true }
+    );
+    if (!rev) return res.status(404).json({ error: 'Revisión no encontrada' });
+    res.json(serializarRevision(rev));
+  })
+);
+
+// DELETE /api/bebe/revisiones/:id — Eliminar una revisión pediátrica
+router.delete(
+  '/revisiones/:id',
+  asyncHandler(async (req, res) => {
+    const eliminada = await BebeRevision.findOneAndDelete({
+      _id: req.params.id,
+      usuarioId: req.userId
+    });
+    if (!eliminada) return res.status(404).json({ error: 'Revisión no encontrada' });
     res.json({ ok: true });
   })
 );
