@@ -19,6 +19,13 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
 
   const data = await res.json().catch(() => null);
 
+  if (res.status === 401 && auth) {
+    localStorage.removeItem('gestabien_token');
+    localStorage.removeItem('gestabien_user');
+    window.location.href = '/login';
+    throw new Error(data?.error || 'Sesión expirada');
+  }
+
   if (!res.ok) {
     throw new Error(data?.error || `Error ${res.status}`);
   }
@@ -80,5 +87,15 @@ export const api = {
   getAzucar: () => request('/azucar'),
   guardarAzucar: (datos) => request('/azucar', { method: 'POST', body: datos }),
   guardarAzucarBatch: (items) => request('/azucar/batch', { method: 'POST', body: { items } }),
-  eliminarAzucar: (fecha) => request(`/azucar/${fecha}`, { method: 'DELETE' })
+  eliminarAzucar: (fecha) => request(`/azucar/${fecha}`, { method: 'DELETE' }),
+  getBebeRegistros: (tipo) => request(tipo ? `/bebe/registros?tipo=${encodeURIComponent(tipo)}` : '/bebe/registros'),
+  guardarBebeMedicion: (datos) => request('/bebe/mediciones', { method: 'POST', body: datos }),
+  eliminarBebeRegistro: (id) => request(`/bebe/registros/${id}`, { method: 'DELETE' }),
+  eliminarBebeGrupo: (grupoId) => request(`/bebe/grupos/${grupoId}`, { method: 'DELETE' }),
+  getBebeVacunas: () => request('/bebe/vacunas'),
+  guardarBebeVacuna: (datos) => request('/bebe/vacunas', { method: 'POST', body: datos }),
+  eliminarBebeVacuna: (codigo) => request(`/bebe/vacunas/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
+  getBebeCompras: () => request('/bebe/compras'),
+  guardarBebeCompra: (datos) => request('/bebe/compras', { method: 'POST', body: datos }),
+  eliminarBebeCompra: (codigo) => request(`/bebe/compras/${encodeURIComponent(codigo)}`, { method: 'DELETE' })
 };

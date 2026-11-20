@@ -4,13 +4,17 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../api/client.js';
 import logo from '../assets/logo.jpg';
 
-const tabs = [
+const tabsPrincipales = [
   { to: '/', label: 'Hoy', icon: '📋' },
-  { to: '/azucar', label: 'Azúcar', icon: '🩸' },
+  { to: '/bebe', label: 'Bebé', icon: '👶' },
   { to: '/calendario', label: 'Calendario', icon: '📅' },
-  { to: '/evolucion', label: 'Evolución', icon: '📈' },
   { to: '/embarazo', label: 'Embarazo', icon: '🤰' },
   { to: '/diario', label: 'Diario', icon: '📔' }
+];
+
+const tabsOtros = [
+  { to: '/azucar', label: 'Azúcar', icon: '🩸' },
+  { to: '/evolucion', label: 'Evolución', icon: '📈' }
 ];
 
 export default function Layout() {
@@ -18,7 +22,14 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [avisoPolar, setAvisoPolar] = useState('');
+  const [otrosAbierto, setOtrosAbierto] = useState(false);
   const yaProcesado = useRef(false);
+
+  const esRutaOtros = tabsOtros.some((t) => location.pathname === t.to || location.pathname.startsWith(`${t.to}/`));
+
+  useEffect(() => {
+    setOtrosAbierto(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -64,8 +75,17 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto pb-20">
         <Outlet />
       </main>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-rose-200 flex justify-around py-2">
-        {tabs.map((tab) => (
+
+      {otrosAbierto && (
+        <div
+          className="fixed inset-0 z-30 bg-black/15"
+          onClick={() => setOtrosAbierto(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-rose-200 flex justify-around py-2">
+        {tabsPrincipales.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
@@ -80,6 +100,42 @@ export default function Layout() {
             {tab.label}
           </NavLink>
         ))}
+
+        <div className="relative flex flex-col items-center">
+          {otrosAbierto && (
+            <div className="absolute bottom-full right-0 mb-3 bg-white border border-rose-200 rounded-2xl shadow-lg p-2 flex gap-2 min-w-max z-50">
+              {tabsOtros.map((tab) => (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  onClick={() => setOtrosAbierto(false)}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center justify-center text-xs px-3.5 py-2 rounded-xl transition-colors ${
+                      isActive
+                        ? 'bg-rose-50 text-rose-600 font-semibold border border-rose-200'
+                        : 'text-gray-600 hover:bg-rose-50/60'
+                    }`
+                  }
+                >
+                  <span className="text-xl">{tab.icon}</span>
+                  <span className="mt-0.5">{tab.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setOtrosAbierto((prev) => !prev)}
+            aria-expanded={otrosAbierto}
+            className={`flex flex-col items-center text-xs px-2 py-1 rounded-lg transition-colors ${
+              otrosAbierto || esRutaOtros ? 'text-rose-600 font-semibold' : 'text-gray-500'
+            }`}
+          >
+            <span className="text-xl leading-7">⋯</span>
+            Otros
+          </button>
+        </div>
       </nav>
     </div>
   );
