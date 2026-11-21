@@ -234,6 +234,7 @@ function serializarCompra(c) {
     categoria: c.categoria,
     comprado: !!c.comprado,
     descartado: !!c.descartado,
+    eliminado: !!c.eliminado,
     notas: c.notas || '',
     personalizada: !!c.personalizada
   };
@@ -270,6 +271,7 @@ router.post(
           categoria: categoria || 'Otros',
           comprado: Boolean(comprado),
           descartado: Boolean(descartado),
+          eliminado: false,
           notas: notas || '',
           personalizada: Boolean(personalizada)
         }
@@ -281,14 +283,21 @@ router.post(
   })
 );
 
-// DELETE /api/bebe/compras/:codigo — Eliminar un artículo personalizado o resetear uno estándar
+// DELETE /api/bebe/compras/:codigo — Eliminar un artículo (marcar como eliminado para que no vuelva si es base)
 router.delete(
   '/compras/:codigo',
   asyncHandler(async (req, res) => {
-    await BebeCompra.findOneAndDelete({
-      usuarioId: req.userId,
-      codigo: req.params.codigo
-    });
+    await BebeCompra.findOneAndUpdate(
+      { usuarioId: req.userId, codigo: req.params.codigo },
+      {
+        $set: {
+          usuarioId: req.userId,
+          codigo: req.params.codigo,
+          eliminado: true
+        }
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
     res.json({ ok: true });
   })
 );

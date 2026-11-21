@@ -8,6 +8,7 @@ const bebeCompraSchema = new mongoose.Schema(
     categoria: { type: String, default: 'Otros' },
     comprado: { type: Boolean, default: false },
     descartado: { type: Boolean, default: false },
+    eliminado: { type: Boolean, default: false },
     notas: { type: String, default: '' },
     personalizada: { type: Boolean, default: false }
   },
