@@ -1820,14 +1820,23 @@ return (
                               >
                                 {item.nombre}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => setCompraEditando(estaEditando ? null : { ...item })}
-                                className="text-xs text-rose-500 font-medium shrink-0"
-                              >
-                                {estaEditando ? 'Cerrar' : 'Nota'}
-                                {estaEditando ? 'Cerrar' : 'Editar'}
-                              </button>
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setCompraEditando(estaEditando ? null : { ...item })}
+                                  className="text-xs text-rose-500 hover:text-rose-600 font-medium"
+                                >
+                                  {estaEditando ? 'Cerrar' : 'Editar'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEliminarCompra(item.codigo)}
+                                  className="text-xs text-gray-400 hover:text-red-500 font-medium"
+                                  title="Borrar artículo"
+                                >
+                                  Borrar
+                                </button>
+                              </div>
                             </div>
 
                             {item.descartado && (
