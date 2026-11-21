@@ -516,9 +516,8 @@ export default function Bebe() {
       };
   }).filter(Boolean);
 
-  const codigosBase = new Set(LISTA_COMPRAS_BASE.map((c) => c.codigo));
-  comprasBD.forEach((c) => {
-    if (!codigosBase.has(c.codigo)) {
+    const codigosBase = new Set(LISTA_COMPRAS_BASE.map((c) => c.codigo));
+    comprasBD.forEach((c) => {
       if (!codigosBase.has(c.codigo) && !c.eliminado) {
         combinadas.push({
           ...c,
@@ -1846,18 +1845,8 @@ return (
                         {estaEditando && (
                             <form
                               onSubmit={handleGuardarEdicionCompra}
-                              className="mt-2.5 pt-2.5 border-t border-rose-100 space-y-2"
                               className="mt-2.5 pt-2.5 border-t border-rose-100 space-y-2.5"
                             >
-                              <input
-                                type="text"
-                                placeholder="Nota (modelo, tienda, precio, regalo…)"
-                                value={compraEditando.notas || ''}
-                                onChange={(e) =>
-                                  setCompraEditando((prev) => ({ ...prev, notas: e.target.value }))
-                                }
-                                className="w-full text-xs rounded-lg border border-gray-300 px-2.5 py-1.5 bg-white"
-                              />
                               <div>
                                 <label className="block text-[11px] text-gray-500 mb-0.5">Nombre del artículo</label>
                                 <input
@@ -1871,30 +1860,19 @@ return (
                                 />
                               </div>
 
-                              <label className="flex items-center gap-2 text-xs text-gray-600">
                               <div>
                                 <label className="block text-[11px] text-gray-500 mb-0.5">Notas</label>
                                 <input
-                                  type="checkbox"
-                                  checked={!!compraEditando.descartado}
                                   type="text"
                                   placeholder="Nota (modelo, tienda, precio, regalo…)"
                                   value={compraEditando.notas || ''}
                                   onChange={(e) =>
-                                    setCompraEditando((prev) => ({
-                                      ...prev,
-                                      descartado: e.target.checked,
-                                      comprado: e.target.checked ? false : prev.comprado
-                                    }))
                                     setCompraEditando((prev) => ({ ...prev, notas: e.target.value }))
                                   }
                                   className="w-full text-xs rounded-lg border border-gray-300 px-2.5 py-1.5 bg-white"
                                 />
-                                Marcar como «No necesario»
-                              </label>
                               </div>
 
-                              <div className="flex items-center gap-2">
                               <div className="flex flex-wrap items-center gap-3 pt-0.5">
                                 <label className="flex items-center gap-1.5 text-xs text-gray-700 font-medium cursor-pointer">
                                   <input
@@ -1937,15 +1915,6 @@ return (
                                 >
                                   {guardandoCompra ? 'Guardando…' : 'Guardar'}
                                 </button>
-                                {item.personalizada && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEliminarCompra(item.codigo)}
-                                    className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 bg-white"
-                                  >
-                                    Eliminar
-                                  </button>
-                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleEliminarCompra(item.codigo)}
@@ -1955,7 +1924,7 @@ return (
                                 </button>
                               </div>
                             </form>
-                        )}
+                          )}
                       </div>
                     );
                   })}
