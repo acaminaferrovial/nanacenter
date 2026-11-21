@@ -1820,18 +1820,18 @@ return (
                               >
                                 {item.nombre}
                               </span>
-                              <div className="flex items-center gap-2.5 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => setCompraEditando(estaEditando ? null : { ...item })}
-                                  className="text-xs text-rose-500 hover:text-rose-600 font-medium"
+                                  className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-xs text-rose-600 font-medium transition-colors"
                                 >
                                   {estaEditando ? 'Cerrar' : 'Editar'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleEliminarCompra(item.codigo)}
-                                  className="text-xs text-gray-400 hover:text-red-500 font-medium"
+                                  className="px-2.5 py-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-xs text-red-600 font-medium transition-colors"
                                   title="Borrar artículo"
                                 >
                                   Borrar
@@ -1920,16 +1920,9 @@ return (
                                 <button
                                   type="submit"
                                   disabled={guardandoCompra}
-                                  className="flex-1 bg-rose-500 text-white rounded-lg py-1.5 text-xs font-semibold disabled:opacity-50"
+                                  className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-lg py-1.5 text-xs font-semibold disabled:opacity-50 transition-colors"
                                 >
                                   {guardandoCompra ? 'Guardando…' : 'Guardar'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEliminarCompra(item.codigo)}
-                                  className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 bg-white hover:bg-red-50"
-                                >
-                                  Borrar
                                 </button>
                               </div>
                             </form>
