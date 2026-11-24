@@ -49,11 +49,22 @@ router.patch(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { nombre, fechaUltimaRegla, fechaProbableParto, alturaCm, fototipo, edad } = req.body;
+    const {
+      nombre,
+      fechaUltimaRegla,
+      fechaProbableParto,
+      fechaNacimientoBebe,
+      ultimaVersionVista,
+      alturaCm,
+      fototipo,
+      edad
+    } = req.body;
     const datos = {};
     if (nombre !== undefined) datos.nombre = nombre;
     if (fechaUltimaRegla !== undefined) datos.fechaUltimaRegla = fechaUltimaRegla ? new Date(fechaUltimaRegla) : null;
     if (fechaProbableParto !== undefined) datos.fechaProbableParto = fechaProbableParto ? new Date(fechaProbableParto) : null;
+    if (fechaNacimientoBebe !== undefined) datos.fechaNacimientoBebe = fechaNacimientoBebe ? new Date(fechaNacimientoBebe) : null;
+    if (ultimaVersionVista !== undefined) datos.ultimaVersionVista = String(ultimaVersionVista || '');
     if (alturaCm !== undefined) datos.alturaCm = alturaCm;
     if (fototipo !== undefined) datos.fototipo = fototipo;
     if (edad !== undefined) datos.edad = edad;

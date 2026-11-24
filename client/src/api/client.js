@@ -101,5 +101,8 @@ export const api = {
   getBebeRevisiones: () => request('/bebe/revisiones'),
   crearBebeRevision: (datos) => request('/bebe/revisiones', { method: 'POST', body: datos }),
   actualizarBebeRevision: (id, datos) => request(`/bebe/revisiones/${id}`, { method: 'PATCH', body: datos }),
-  eliminarBebeRevision: (id) => request(`/bebe/revisiones/${id}`, { method: 'DELETE' })
+  eliminarBebeRevision: (id) => request(`/bebe/revisiones/${id}`, { method: 'DELETE' }),
+  getBebeActividades: () => request('/bebe/actividades'),
+  guardarBebeActividad: (datos) => request('/bebe/actividades', { method: 'POST', body: datos }),
+  eliminarBebeActividad: (id) => request(`/bebe/actividades/${id}`, { method: 'DELETE' })
 };

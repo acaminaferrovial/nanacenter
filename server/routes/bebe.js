@@ -4,6 +4,7 @@ import BebeRegistro from '../models/BebeRegistro.js';
 import BebeVacuna from '../models/BebeVacuna.js';
 import BebeCompra from '../models/BebeCompra.js';
 import BebeRevision from '../models/BebeRevision.js';
+import BebeActividad from '../models/BebeActividad.js';
 import { parseFecha, fechaKey } from '../utils/fecha.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -32,6 +33,7 @@ function serializarVacuna(v) {
     descripcion: v.descripcion,
     estado: v.estado,
     fechaAplicacion: v.fechaAplicacion ? fechaKey(v.fechaAplicacion) : '',
+    fechaPrevista: v.fechaPrevista ? fechaKey(v.fechaPrevista) : '',
     lote: v.lote || '',
     notas: v.notas || '',
     personalizada: !!v.personalizada
@@ -173,6 +175,7 @@ router.post(
       descripcion,
       estado,
       fechaAplicacion,
+      fechaPrevista,
       lote,
       notas,
       personalizada
@@ -190,6 +193,12 @@ router.post(
       if (!fechaParsed) return res.status(400).json({ error: 'Fecha de aplicación inválida, usa YYYY-MM-DD' });
     }
 
+    let fechaPrevistaParsed = null;
+    if (fechaPrevista) {
+      fechaPrevistaParsed = parseFecha(fechaPrevista);
+      if (!fechaPrevistaParsed) return res.status(400).json({ error: 'Fecha prevista inválida, usa YYYY-MM-DD' });
+    }
+
     const vacuna = await BebeVacuna.findOneAndUpdate(
       { usuarioId: req.userId, codigo: codigoFinal },
       {
@@ -202,6 +211,7 @@ router.post(
           descripcion: descripcion || '',
           estado: ['pendiente', 'puesta', 'no_aplica'].includes(estado) ? estado : 'pendiente',
           fechaAplicacion: fechaParsed,
+          fechaPrevista: fechaPrevistaParsed,
           lote: lote || '',
           notas: notas || '',
           personalizada: Boolean(personalizada)
@@ -400,6 +410,71 @@ router.delete(
       usuarioId: req.userId
     });
     if (!eliminada) return res.status(404).json({ error: 'Revisión no encontrada' });
+    res.json({ ok: true });
+  })
+);
+
+function serializarActividad(a) {
+  return {
+    _id: a._id,
+    fecha: fechaKey(a.fecha),
+    codigo: a.codigo,
+    titulo: a.titulo,
+    categoria: a.categoria || 'Ejercicio',
+    completada: !!a.completada,
+    notas: a.notas || ''
+  };
+}
+
+// GET /api/bebe/actividades — Obtener actividades/ejercicios marcados del bebé
+router.get(
+  '/actividades',
+  asyncHandler(async (req, res) => {
+    const actividades = await BebeActividad.find({ usuarioId: req.userId }).sort({ fecha: 1, createdAt: 1 });
+    res.json(actividades.map(serializarActividad));
+  })
+);
+
+// POST /api/bebe/actividades — Marcar/desmarcar o guardar una actividad de un día (upsert por fecha + codigo)
+router.post(
+  '/actividades',
+  asyncHandler(async (req, res) => {
+    const { fecha: fechaStr, codigo, titulo, categoria, completada, notas } = req.body;
+    const fecha = parseFecha(fechaStr);
+    if (!fecha) return res.status(400).json({ error: 'Fecha inválida, usa YYYY-MM-DD' });
+    if (!titulo || !titulo.trim()) return res.status(400).json({ error: 'El título de la actividad es obligatorio' });
+
+    const codigoFinal = codigo && String(codigo).trim() ? String(codigo).trim() : `custom-${crypto.randomUUID()}`;
+
+    const act = await BebeActividad.findOneAndUpdate(
+      { usuarioId: req.userId, fecha, codigo: codigoFinal },
+      {
+        $set: {
+          usuarioId: req.userId,
+          fecha,
+          codigo: codigoFinal,
+          titulo: titulo.trim(),
+          categoria: categoria || 'Ejercicio',
+          completada: completada !== undefined ? Boolean(completada) : true,
+          notas: notas || ''
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+
+    res.status(201).json(serializarActividad(act));
+  })
+);
+
+// DELETE /api/bebe/actividades/:id — Eliminar una actividad personalizada o registro
+router.delete(
+  '/actividades/:id',
+  asyncHandler(async (req, res) => {
+    const eliminada = await BebeActividad.findOneAndDelete({
+      _id: req.params.id,
+      usuarioId: req.userId
+    });
+    if (!eliminada) return res.status(404).json({ error: 'Actividad no encontrada' });
     res.json({ ok: true });
   })
 );

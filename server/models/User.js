@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema(
     nombre: { type: String, default: '' },
     fechaUltimaRegla: { type: Date },
     fechaProbableParto: { type: Date },
+    fechaNacimientoBebe: { type: Date },
+    ultimaVersionVista: { type: String, default: '' },
     alturaCm: { type: Number },
     fototipo: { type: Number, min: 1, max: 6 },
     edad: { type: Number },

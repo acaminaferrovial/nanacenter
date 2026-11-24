@@ -14,6 +14,7 @@ const bebeVacunaSchema = new mongoose.Schema(
       default: 'pendiente'
     },
     fechaAplicacion: { type: Date, default: null },
+    fechaPrevista: { type: Date, default: null },
     lote: { type: String, default: '' },
     notas: { type: String, default: '' },
     personalizada: { type: Boolean, default: false }
