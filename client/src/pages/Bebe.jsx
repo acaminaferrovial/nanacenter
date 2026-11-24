@@ -897,63 +897,63 @@ export default function Bebe() {
       </div>
 
       {/* Selector de subsección */}
-      <div className="grid grid-cols-4 gap-1 bg-white p-1 rounded-2xl border border-rose-100 shadow-sm">
-        <div className="grid grid-cols-5 gap-1 bg-white p-1 rounded-2xl border border-rose-100 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setVista('crecimiento')}
-            className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${vista === 'crecimiento'
-        className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${vista === 'crecimiento'
+      <div className="grid grid-cols-5 gap-1 bg-white p-1 rounded-2xl border border-rose-100 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setVista('crecimiento')}
+          className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${
+            vista === 'crecimiento'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
-              }`}
-          >
-            📏 Crecim.
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista('calendario')}
-            className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${vista === 'calendario'
+          }`}
+        >
+          📏 Crecim.
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista('calendario')}
+          className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${
+            vista === 'calendario'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
-              }`}
-          >
-            📅 Calend.
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista('revisiones')}
-            className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${vista === 'revisiones'
-        className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${vista === 'revisiones'
+          }`}
+        >
+          📅 Calend.
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista('revisiones')}
+          className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${
+            vista === 'revisiones'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
-              }`}
-          >
-            🩺 Revis.
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista('vacunas')}
-            className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${vista === 'vacunas'
-        className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${vista === 'vacunas'
+          }`}
+        >
+          🩺 Revis.
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista('vacunas')}
+          className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${
+            vista === 'vacunas'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
-              }`}
-          >
-            💉 Vacunas
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista('compras')}
-            className={`py-2 px-1 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors ${vista === 'compras'
-        className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${vista === 'compras'
+          }`}
+        >
+          💉 Vacunas
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista('compras')}
+          className={`py-2 px-1 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors ${
+            vista === 'compras'
               ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-rose-50'
-              }`}
-          >
-            🛒 Compras
-          </button>
-        </div>
+          }`}
+        >
+          🛒 Compras
+        </button>
+      </div>
 
         {vista === 'calendario' && (
           <BebeCalendario
