@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Llamar al endpoint de resumen diario
         run: |
-          curl --fail --show-error --silent \
+          curl --fail-with-body --show-error --silent \
             -X POST "${{ secrets.API_URL }}/api/cron/resumen-bebe" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"
