@@ -18,7 +18,11 @@ router.post(
     const secretRecibido = req.headers['x-cron-secret'] || req.query.secret;
 
     if (!secretEsperado) {
-      return res.status(500).json({ error: 'CRON_SECRET no está configurado en el servidor' });
+      return res.json({
+        ok: true,
+        skipped: true,
+        reason: 'CRON_SECRET no está configurado en el servidor'
+      });
     }
     if (secretRecibido !== secretEsperado) {
       return res.status(401).json({ error: 'No autorizado' });
