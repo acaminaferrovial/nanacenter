@@ -5,8 +5,12 @@ import BebeVacuna from '../models/BebeVacuna.js';
 import BebeCompra from '../models/BebeCompra.js';
 import BebeRevision from '../models/BebeRevision.js';
 import BebeActividad from '../models/BebeActividad.js';
+import Registro from '../models/Registro.js';
+import User from '../models/User.js';
 import { parseFecha, fechaKey } from '../utils/fecha.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { construirMensajeResumenBebe, hoyMadridStr } from '../utils/bebePlanning.js';
+import { enviarMensajeTelegram } from '../utils/telegram.js';
 
 const router = Router();
 
@@ -476,6 +480,51 @@ router.delete(
     });
     if (!eliminada) return res.status(404).json({ error: 'Actividad no encontrada' });
     res.json({ ok: true });
+  })
+);
+
+// POST /api/bebe/telegram/prueba — Enviar ahora el resumen diario de prueba por Telegram
+router.post(
+  '/telegram/prueba',
+  asyncHandler(async (req, res) => {
+    const usuario = await User.findById(req.userId);
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const hoyStr = hoyMadridStr();
+    const fechaNacimientoStr = usuario.fechaNacimientoBebe
+      ? fechaKey(usuario.fechaNacimientoBebe)
+      : usuario.fechaProbableParto
+      ? fechaKey(usuario.fechaProbableParto)
+      : '';
+
+    const [revisiones, vacunasBD, registrosConCitas] = await Promise.all([
+      BebeRevision.find({ usuarioId: req.userId }),
+      BebeVacuna.find({ usuarioId: req.userId }),
+      Registro.find({ usuarioId: req.userId, 'citasMedicas.0': { $exists: true } }).select('fecha citasMedicas')
+    ]);
+
+    const citasEmbarazo = [];
+    registrosConCitas.forEach((reg) => {
+      (reg.citasMedicas || []).forEach((cita) => {
+        citasEmbarazo.push({
+          tipo: cita.tipo,
+          resumen: cita.resumen,
+          fecha: cita.fecha || reg.fecha
+        });
+      });
+    });
+
+    const mensaje = construirMensajeResumenBebe({
+      hoyStr,
+      fechaNacimientoStr,
+      revisiones,
+      citasEmbarazo,
+      vacunasBD,
+      appUrl: process.env.APP_URL || ''
+    });
+
+    const enviados = await enviarMensajeTelegram(mensaje);
+    res.json({ ok: true, enviados });
   })
 );
 

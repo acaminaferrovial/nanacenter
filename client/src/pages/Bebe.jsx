@@ -301,6 +301,7 @@ export default function Bebe() {
   const [vacunasBD, setVacunasBD] = useState([]);
   const [comprasBD, setComprasBD] = useState([]);
   const [revisiones, setRevisiones] = useState([]);
+  const [citasEmbarazo, setCitasEmbarazo] = useState([]);
   const [actividadesBD, setActividadesBD] = useState([]);
   const [fechaNacimientoBebe, setFechaNacimientoBebe] = useState('');
   const [loading, setLoading] = useState(true);
@@ -335,19 +336,36 @@ export default function Bebe() {
 
   async function cargarDatos() {
     setErrorMsg('');
-    const [regs, vacs, comps, revs, acts, perfil] = await Promise.all([
+    const [regs, vacs, comps, revs, acts, perfil, registrosEmbarazo] = await Promise.all([
       api.getBebeRegistros(),
       api.getBebeVacunas(),
       api.getBebeCompras(),
       api.getBebeRevisiones(),
       api.getBebeActividades(),
-      api.getPerfil()
+      api.getPerfil(),
+      api.getRegistros()
     ]);
     setRegistros(regs || []);
     setVacunasBD(vacs || []);
     setComprasBD(comps || []);
     setRevisiones(revs || []);
     setActividadesBD(acts || []);
+
+    const listaCitasEmb = [];
+    (registrosEmbarazo || []).forEach((r) => {
+      (r.citasMedicas || []).forEach((cita, idx) => {
+        listaCitasEmb.push({
+          _id: `emb-${r._id || r.fecha}-${idx}`,
+          fecha: cita.fecha ? fechaKey(cita.fecha) : fechaKey(r.fecha),
+          tipo: cita.tipo || 'Cita embarazo',
+          resumen: cita.resumen || '',
+          recomendaciones: cita.recomendaciones || '',
+          _esEmbarazo: true
+        });
+      });
+    });
+    setCitasEmbarazo(listaCitasEmb);
+
     const fechaNac = perfil?.fechaNacimientoBebe
       ? fechaKey(perfil.fechaNacimientoBebe)
       : perfil?.fechaProbableParto
@@ -961,6 +979,7 @@ export default function Bebe() {
             fechaNacimiento={fechaNacimientoBebe}
             onGuardarFechaNacimiento={handleGuardarFechaNacimiento}
             revisiones={revisiones}
+            citasEmbarazo={citasEmbarazo}
             listaVacunas={listaVacunas}
             actividadesBD={actividadesBD}
             onRefrescar={cargarDatos}

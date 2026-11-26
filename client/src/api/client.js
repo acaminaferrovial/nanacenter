@@ -104,5 +104,6 @@ export const api = {
   eliminarBebeRevision: (id) => request(`/bebe/revisiones/${id}`, { method: 'DELETE' }),
   getBebeActividades: () => request('/bebe/actividades'),
   guardarBebeActividad: (datos) => request('/bebe/actividades', { method: 'POST', body: datos }),
-  eliminarBebeActividad: (id) => request(`/bebe/actividades/${id}`, { method: 'DELETE' })
+  eliminarBebeActividad: (id) => request(`/bebe/actividades/${id}`, { method: 'DELETE' }),
+  probarTelegramBebe: () => request('/bebe/telegram/prueba', { method: 'POST' })
 };

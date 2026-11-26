@@ -24,6 +24,7 @@ export default function BebeCalendario({
   fechaNacimiento,
   onGuardarFechaNacimiento,
   revisiones,
+  citasEmbarazo = [],
   listaVacunas,
   actividadesBD,
   onRefrescar,
@@ -52,6 +53,8 @@ export default function BebeCalendario({
   // Guía completa 0-3 meses desplegable
   const [guiaAbierta, setGuiaAbierta] = useState(false);
   const [vacunasSinFechaAbierto, setVacunasSinFechaAbierto] = useState(false);
+  const [enviandoTelegram, setEnviandoTelegram] = useState(false);
+  const [avisoTelegram, setAvisoTelegram] = useState('');
 
   // Sincronizar input si cambia desde fuera
   const fechaNacEfectiva = fechaNacimiento || '';
@@ -112,8 +115,14 @@ export default function BebeCalendario({
         map[rev.proximaRevision].push({ ...rev, _esProxima: true });
       }
     });
+    (citasEmbarazo || []).forEach((cita) => {
+      if (cita.fecha) {
+        if (!map[cita.fecha]) map[cita.fecha] = [];
+        map[cita.fecha].push({ ...cita, _esEmbarazo: true });
+      }
+    });
     return map;
-  }, [revisiones]);
+  }, [revisiones, citasEmbarazo]);
 
   const vacunasPorFecha = useMemo(() => {
     const map = {};
@@ -210,6 +219,21 @@ export default function BebeCalendario({
     }
   }
 
+  async function handleProbarTelegram() {
+    setEnviandoTelegram(true);
+    setAvisoTelegram('');
+    onError('');
+    try {
+      await api.probarTelegramBebe();
+      setAvisoTelegram('¡Resumen enviado por Telegram!');
+      setTimeout(() => setAvisoTelegram(''), 4000);
+    } catch (err) {
+      onError(err.message || 'No se pudo enviar el mensaje de Telegram');
+    } finally {
+      setEnviandoTelegram(false);
+    }
+  }
+
   async function handleToggleEjercicio(ejercicio) {
     onError('');
     const existente = mapaActividadesBD.get(`${diaSeleccionado}_${ejercicio.codigo}`);
@@ -269,6 +293,20 @@ export default function BebeCalendario({
             {guardandoFechaNac ? 'Guardando…' : 'Guardar'}
           </button>
         </form>
+
+        <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-rose-100/70">
+          <span className="text-[11px] text-gray-500">
+            {avisoTelegram ? <span className="text-emerald-600 font-medium">✓ {avisoTelegram}</span> : 'Resumen diario por Telegram'}
+          </span>
+          <button
+            type="button"
+            onClick={handleProbarTelegram}
+            disabled={enviandoTelegram}
+            className="text-[11px] font-semibold text-rose-600 border border-rose-200 rounded-full px-2.5 py-1 hover:bg-rose-50 disabled:opacity-50"
+          >
+            {enviandoTelegram ? 'Enviando…' : '📲 Probar aviso'}
+          </button>
+        </div>
       </section>
 
       {/* Calendario mensual */}
@@ -440,11 +478,18 @@ export default function BebeCalendario({
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-gray-800">{c.tipo}</span>
-                  {c._esProxima && (
-                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
-                      Próxima revisión
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {c._esEmbarazo && (
+                      <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-medium">
+                        🤰 Embarazo
+                      </span>
+                    )}
+                    {c._esProxima && (
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
+                        Próxima revisión
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {c.profesional && <p className="text-[11px] text-gray-500">👩‍⚕️ {c.profesional}</p>}
                 {c.resumen && <p className="text-xs text-gray-600">{c.resumen}</p>}
