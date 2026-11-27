@@ -1,6 +1,16 @@
-export const LATEST_VERSION = '1.3.0';
+export const LATEST_VERSION = '1.4.0';
 
 export const RELEASE_NOTES = [
+  {
+    version: '1.4.0',
+    fecha: '2026-11-27',
+    titulo: 'Avisos diarios de Mini-ñaña por Telegram, citas de embarazo y modo noche mejorado',
+    cambios: [
+      '📲 Nuevo resumen diario automático de Mini-ñaña por Telegram cada mañana: cuenta atrás hasta su llegada, ejercicios recomendados del día (0–3 meses) cuando nazca, citas próximas y vacunas, más botón «Probar aviso» en Bebé → Calendario.',
+      '🤰 Las citas médicas del embarazo ahora también aparecen en el Calendario del bebé y en los avisos diarios de Telegram.',
+      '🌙 Mejorado el contraste del modo noche en las tarjetas de Polar y en todos los paneles con fondos de color claro.'
+    ]
+  },
   {
     version: '1.3.0',
     fecha: '2026-11-24',
