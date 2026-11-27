@@ -181,22 +181,22 @@ export function construirMensajeResumenBebe({
     month: 'long'
   });
 
-  lineas.push(`🍼 <b>Ñaña Center — Resumen del bebé</b>`);
+  lineas.push(`🍼 <b>Ñaña Center — Resumen de Mini-ñaña</b>`);
   lineas.push(`<i>${escapeHtml(fechaBonita.charAt(0).toUpperCase() + fechaBonita.slice(1))}</i>`);
   lineas.push('');
 
   if (!fechaNacimientoStr) {
-    lineas.push('📅 Aún no has indicado la fecha de nacimiento (o FPP) del bebé en la app.');
+    lineas.push('📅 Aún no has indicado la fecha de nacimiento (o FPP) de Mini-ñaña en la app.');
   } else {
     const dias = diffDias(fechaNacimientoStr, hoyStr);
 
     if (dias < 0) {
       const faltan = Math.abs(dias);
       lineas.push(
-        `⏳ <b>¡Faltan ${faltan} ${faltan === 1 ? 'día' : 'días'}</b> para la llegada del bebé!`
+        `⏳ <b>¡Faltan ${faltan} ${faltan === 1 ? 'día' : 'días'}</b> para la llegada de Mini-ñaña!`
       );
     } else if (dias === 0) {
-      lineas.push('🎉 <b>¡Hoy es el gran día! ¡Bienvenido al mundo!</b>');
+      lineas.push('🎉 <b>¡Hoy es el gran día! ¡Bienvenido al mundo, Mini-ñaña!</b>');
     } else {
       const semana = Math.floor(dias / 7) + 1;
       lineas.push(`👶 <b>Semana ${semana}</b> (${dias} días de vida)`);
@@ -302,7 +302,7 @@ export function construirMensajeResumenBebe({
   if (appUrl) {
     const cleanUrl = appUrl.replace(/\/+$/, '');
     lineas.push('');
-    lineas.push(`👉 <a href="${cleanUrl}/bebe">Abrir calendario del bebé en Ñaña Center</a>`);
+    lineas.push(`👉 <a href="${cleanUrl}/bebe">Abrir calendario de Mini-ñaña en Ñaña Center</a>`);
   }
 
   return lineas.join('\n');
